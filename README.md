@@ -49,19 +49,30 @@ After that check with your browser at addresses plus the port 3838 : http://0.0.
 
 ## Troubleshooting
 1). Seurat installaton
+
+When you see the following warning message in the R console:
 ```{r}
 Warning: Installed Rcpp (0.12.12) different from Rcpp used to build dplyr (0.12.11).
+```
 Please reinstall dplyr to avoid random crashes or undefined behavior. 
-
+```{r}
 install.packages("dplyr", type = "source")
 library(dplyr)
 ```
 
-If you are using R >= 3.4 on a Mac, the latest versions of R use Clang 4.0.0 and GNU Fortran 6.1 which you will need to successfully compile and install Seurat.
+If you are using older R versions, installing from source causes errors on some standard Mac installs due to R being compiled using gfortran-4.8. 
+
+The error will look something like:
+```{r}
+-L/usr/local/lib/gcc/x86_64-apple-darwin13.0.0/4.8.2'
+ld: library not found for -lgfortran
+```
+To fix the above error type following commands in terminal. __* sudo permissions required*__
 ```{r}
 curl -O http://r.research.att.com/libs/gfortran-4.8.2-darwin13.tar.bz2
 sudo tar fvxz gfortran-4.8.2-darwin13.tar.bz2 -C /
 ```
+
 ##
 __*It is important that the input file should follow the same format as descibed below.*__
 
@@ -69,6 +80,7 @@ To get started, please load in a CSV/TSV separated values file. The file should 
 
 1. Columns are Cells
 2. Rows are Genes
+3. __Optional__: Cell names or Cell type in Column header followed by Cell id. eg. Tcell_TC1_fcount_1.
 
 ## Demo data files:
 
