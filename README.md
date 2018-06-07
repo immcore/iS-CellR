@@ -12,17 +12,17 @@ iS-CellR pipeline overview is illustrated in the figure. iS-CellR is organized i
 
 ## Prerequisite
 ```{r}
-1). Install R (v >= 3.2)
+1). Install Docker (v >= 18.02.0-ce)
+Download and install Docker from https://docs.docker.com/install/  
+
+2). Install R (v >= 3.2)
 Download and install R from http://cran.us.r-project.org/  
 
-2). Recommended : Install R Studio
+3). Install R studio (Optional)
 Download and install RStudio Desktop from http://rstudio.org/download/desktop
 
-3). Install the "devtools" package from Hadley Wickham
-install.packages(“devtools”) # inside R console
-
 4). Install Shiny package
-install.packages(“shiny”) # inside R console
+install.packages(“shiny”) # inside R console 
 ```
 
 ## Using R
