@@ -1,0 +1,214 @@
+---
+title : "iS-CellR report"
+params: 
+    set_author: !r values$authentication
+date  : "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+    html_document:
+      toc: true
+      toc_depth: 2
+      toc_float: true
+      collapsed: false
+      smooth_scroll: true
+      theme: united
+---
+
+---
+author: `r params$set_author`
+---
+
+```{r global_options, include=FALSE}
+library(knitr)
+library(kableExtra)
+opts_chunk$set(fig.align = "center", fig.path='Figs/',
+               echo=FALSE, warning=FALSE, message=FALSE)
+```
+<br><br>
+
+# Summary
+
+```{r Summary, fig.align = "center", fig.width=9, fig.height=6}
+
+projectid <- data.table("Project ID: ", values$ProjectID)
+projectname <- data.table("Project name: ", values$ProjectName)
+sampleinfo <- data.table("Sample info: ", values$SampleInfo)
+
+dfCells <- data.table("Total Cells: ", SummaryInfo$val$nCells)
+dfGenes <- data.table("Total Genes: ", SummaryInfo$val$nGenes)
+dfExpr <- data.table("Genes 0Expr: ", SummaryInfo$val$nZero)
+
+dfSummary <- rbind(projectid, projectname, sampleinfo, dfCells, dfGenes, dfExpr)
+colnames(dfSummary) <- c("", "")
+   
+knitr::kable(dfSummary, format = "html", booktabs = FALSE, digits=2) %>%
+   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F, position = "left", font_size = 16)
+   
+```
+<br><br>
+
+# Quality control 
+
+```{r QCinfo, fig.align = "center", fig.width=9, fig.height=6}
+
+#if(!is.null(QCfilter$val$nGenes2) && !is.null(QCfilter$val$nCells) && !is.null(QCfilter$val$Expr2)){
+#    QCfilter$val$nGenes2 <- 3
+#    QCfilter$val$nCells <- 3
+#    QCfilter$val$Expr2 <- 0
+#}
+
+qcGenes <- data.table("Minimum genes: ", QCfilter$val$nGenes2)
+qcCells <- data.table("Minimum cells: ", QCfilter$val$nCells)
+ExpThr <- data.table("Expression threshold: ", QCfilter$val$Expr2)
+
+qcSummary <- rbind(qcGenes, qcCells, ExpThr)
+colnames(qcSummary) <- c(" ", "Values")
+   
+knitr::kable(qcSummary, format = "html", booktabs = FALSE, digits=2) %>%
+   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F, position = "left", font_size = 16)
+
+
+```
+<br><br>
+
+## Frequency of expression vs Mean expression plot
+
+```{r FreqvsMean, fig.align = "center", fig.width=12, fig.height=8}
+
+if(!is.null(DownloadPlot$val$Summaryplot)){
+  print(DownloadPlot$val$Summaryplot)
+}
+
+```
+<br><br>
+
+# PCA plot: linear dimensional reduction 
+
+```{r PCA analysis, fig.align = "center", fig.width=12, fig.height=8}
+
+if(!is.null(DownloadPlot$val$PCAplot)){
+  ggplotly(DownloadPlot$val$PCAplot)
+}
+
+```
+<br><br>
+
+## PCA Vizplot: linear dimensional reduction 
+
+```{r PCA Vizplot analysis, fig.align = "center", fig.width=12, fig.height=8}
+
+if(!is.null(DownloadPlot$val$Vizplot)){
+  print(DownloadPlot$val$Vizplot)
+}
+
+```
+<br><br>
+
+# tSNE plot: non-linear dimensional reduction
+
+```{r tSNE analysis, fig.align = "center", fig.width=12, fig.height=8}
+if(!is.null(DownloadPlot$val$tSNEplot)){
+  ggplotly(DownloadPlot$val$tSNEplot)
+}
+
+```
+<br><br>
+
+# Differentially expressed genes
+
+## Joy plot
+```{r Joyplot, fig.align = "center", fig.width=12, fig.height=13}
+
+if(!is.null(DownloadPlot$val$Joyplot)){
+    print(DownloadPlot$val$Joyplot) 
+}
+
+```
+
+## Violin plot
+```{r Violinplot, fig.align = "center", fig.width=12, fig.height=13}
+
+if(!is.null(DownloadPlot$val$Vlnplot)){
+    print(DownloadPlot$val$Vlnplot)
+}
+
+```
+
+## Dot plot
+```{r Dotplot, fig.align = "center", fig.width=12, fig.height=13}
+
+if(!is.null(DownloadPlot$val$Dotplot)){
+    print(DownloadPlot$val$Dotplot)
+}
+
+```
+
+## Marker genes
+
+```{r Featureplot, fig.align = "center", fig.width=12, fig.height=13}
+
+if(!is.null(DownloadPlot$val$Featureplot)){
+    ggplotly(DownloadPlot$val$Featureplot)
+}
+
+```
+
+## Heatmap
+
+```{r Heatmap, fig.align = "center", fig.width=12, fig.height=13}
+
+if(!is.null(DownloadPlot$val$Heatmap)){
+    print(DownloadPlot$val$Heatmap)
+}
+
+```
+<br><br>
+
+# Co-expression 
+
+```{r Co-expressed genes, fig.align = "center", fig.width=12, fig.height=8}
+
+if(!is.null(DownloadPlot$val$CoExprplot1)){
+   outputGene1 <- data.table(CoExprValue$val$Gene1, CoExprValue$val$Gene1Min, CoExprValue$val$Gene1Max, CoExprValue$val$Gene1Mean)
+   outputGene2 <- data.table(CoExprValue$val$Gene2, CoExprValue$val$Gene2Min, CoExprValue$val$Gene2Max, CoExprValue$val$Gene2Mean)
+   outputGene12 <- rbind(outputGene1, outputGene2)
+   colnames(outputGene12) <- c("", "Min", "Max", "Mean")
+   
+   knitr::kable(outputGene12, "html", digits=2, caption = "Gene expression") %>%
+   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = F, position = "left", font_size = 16)
+   
+   #knitr::kable(outputGene12, digits = 8, caption = "Gene expression values")
+}
+
+if(!is.null(DownloadPlot$val$CoExprplot)){
+   ggplotly(DownloadPlot$val$CoExprplot)
+}
+```
+<br><br>
+
+# Inter sample heterogeneity
+
+```{r Inter sample heterogeneity, fig.align = "center", fig.width=12, fig.height=8}
+
+if(!is.null(DownloadPlot$val$InterHet)){
+   print(DownloadPlot$val$InterHet) 
+}
+
+```
+<br><br>
+
+# Intra sample heterogeneity
+
+```{r Intra sample heterogeneity, fig.align = "center", fig.width=12, fig.height=8}
+if(!is.null(DownloadPlot$val$IntraHetplot)){
+    print(DownloadPlot$val$IntraHetplot) 
+}
+
+```
+<br><br>
+
+# R and package versions used
+
+```{r sessionInfo, include=TRUE, echo=TRUE, results='markup'}
+sessionInfo()
+
+```
