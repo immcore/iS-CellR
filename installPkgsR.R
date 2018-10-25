@@ -12,8 +12,8 @@ instpkg <- function(pkg,repo){
 
 
 # CRAN R packages
-CRANpkgs <- c("shinyBS", "shinydashboard", "shinycssloaders", "shinyjs", "DT", "devtools", "dplyr", "knitr", "kableExtra", "knitcitations", "nycflights13", 
-	"Matrix", "plotly", "pryr", "igraph", "ggthemes", "evaluate", "psych", "ggjoy", "formattable", "gridExtra", "cowplot", "ggrepel", "data.table", "stringr", "rmarkdown")
+CRANpkgs <- c("shinyBS", "shinydashboard", "shinydashboardPlus", "shinyFiles", "shinyWidgets", "htmltools", "shinycssloaders", "shinyjs", "DT", "devtools", "dplyr", "knitr", "kableExtra", "knitcitations", "nycflights13", 
+	"Matrix", "plotly", "pryr", "tools", "igraph", "heatmaply", "data.table", "ggthemes", "evaluate", "psych", "ggjoy", "formattable", "gridExtra", "cowplot", "ggrepel", "data.table", "stringr", "rmarkdown")
 instpkg(CRANpkgs, "CRAN")
 
 # check if Dev Shiny installed
@@ -56,4 +56,19 @@ if (length(new.pkg)) {
     }
 sapply(pkg, require, character.only = TRUE)
 
+# check if dashboardthemes installed
+pkg <- "dashboardthemes"
+new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+if (length(new.pkg)) {
+  devtools::install_github("nik01010/dashboardthemes", dependencies=FALSE)
+}
+sapply(pkg, require, character.only = TRUE)
 
+# check if MAST installed
+pkg <- "MAST"
+new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+if (length(new.pkg)) {
+    source("https://bioconductor.org/biocLite.R")
+    biocLite("MAST")
+}
+sapply(pkg, require, character.only = TRUE)
