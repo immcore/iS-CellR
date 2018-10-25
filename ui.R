@@ -12,10 +12,20 @@ options(shiny.maxRequestSize = 6000*1024^2)
 #.rs.restartR() # Restart R session
 # check if pkgs are installed already, if not, install automatically:
 source("installPkgsR.R")
+source("SwitchButton.R")
 source("helpers.R") # Load all the code needed to show feedback on a button click
-selectSteps <- list("Quality control and cell filtering", "Gene variability across single cells", "Linear dimensional reduction (PCA)", "Non-linear dimensional reduction (tSNE)", "Differentially expressed genes", "Discriminating marker genes")
+selectSteps <- list("Quality control and cell filtering", "Gene variability across single cells", "Linear dimensional reduction (PCA)", "Non-linear dimensional reduction (UMAP/tSNE)", "Differentially expressed genes", "Discriminating marker genes")
 
-header <- dashboardHeader(title = "iS-CellR")
+header <- dashboardHeader(title = "iS-CellR",
+                          tags$li(class = "dropdown",
+                                  tags$a(href="http://www.immunocore.com", target="_blank", 
+                                  tags$img(height = "20px", src="logo.png"),style = "text-align: center")
+                          #tags$li(a(href = 'http://www.immunocore.com',
+                          #            img(src = 'logo.png',
+                          #                height = "50px"),
+                          #            style = "text-align: center"),
+                          #          class = "dropdown"))
+                          ))
 
 sidebar <- dashboardSidebar( uiOutput("userName"),
                              tags$style(type="text/css",
@@ -41,7 +51,10 @@ body <- dashboardBody(tags$head(includeCSS(rel = "stylesheet", type = "text/css"
                             box(
                               title = h2("iS-CellR - Interactive platform for Single-cell RNAseq"), solidHeader = FALSE,
                               collapsible = TRUE, width = 12, status="info", 
-                              includeMarkdown("about.md")
+                              includeMarkdown("about.md"),
+                              #bsAlert("alertCITE"),
+                              #bsButton("citeBton", label = "Mitulkumar V Patel (2018). iS-CellR: a user-friendly tool for analyzing and visualizing single-cell RNA sequencing data, Bioinformatics, 1-2. doi: 10.1093/bioinformatics/bty517. https://doi.org/10.1093/bioinformatics/bty517", block = TRUE, class = "citebutton", style = "success", icon = icon("bullhorn"), size = "default") 
+                              bsButton("citeBton", label = HTML(paste("<strong>","Mitulkumar V Patel","</strong>", " (2018). iS-CellR: a user-friendly tool for analyzing and visualizing single-cell RNA sequencing data. ", paste("<em>", "Bioinformatics,", "</em>", sep="")," 1-2. doi: 10.1093/bioinformatics/bty517. <a href=https://academic.oup.com/bioinformatics/advance-article/doi/10.1093/bioinformatics/bty517/5048937, target='blank'>[Article]</a>", sep="")), block = TRUE, class = "citebutton", icon = icon("bullhorn"), type = "toggle", value = FALSE, size = "default")                             
                             ),
                             infoBoxOutput("pipeline"),
                             tags$div(id="BOX1",
@@ -116,21 +129,28 @@ body <- dashboardBody(tags$head(includeCSS(rel = "stylesheet", type = "text/css"
                                 tags$style(appCSS),
                                 title = "Choose file to upload",
                                 collapsed = TRUE, collapsible = FALSE, width=6,
-                                radioButtons('sep', 'Separator', 
-                                             c(Comma=',',
+                                prettyRadioButtons(inputId = 'sep', label = 'Separator', 
+                                             choices = c(Comma=',',
                                                Semicolon=';',
                                                Tab='\t'),
-                                             ',',inline=T),
-                                radioButtons('quote', 'Quote',
-                                             c(None='',
+                                             thick = FALSE, shape = "round", fill = TRUE,
+                                             animation = "pulse", status = "warning",
+                                             selected = ',', inline=T),
+                                prettyRadioButtons(inputId = 'quote', label = 'Quote',
+                                             choices = c(None='',
                                                'Double Quote'='"',
                                                'Single Quote'="'"),
-                                             '"',inline=T),
+                                             thick = FALSE, shape = "round", fill = TRUE, 
+                                             animation = "pulse", status = "warning",
+                                             selected = '"', inline=T),
                                 #tags$head(tags$style(type = "text/css", "#useheader {display:inline-block;}")),
-                                checkboxInput(inputId = "header", label = "Header",value=TRUE),
+                                fluidRow(column(3,
+                                  prettyCheckbox(inputId = "header", label = "Header", icon = icon("check-square"), bigger = TRUE, outline = TRUE, plain = TRUE, animation = "pulse", status = "warning", value=TRUE)),
                                 #checkboxInput('header', 'Header', TRUE),
-                                #checkboxInput('header', '10X genomics', FALSE),
-                                fileInput('file1', '',
+                                column(3, prettyCheckbox(inputId = 'load10x', label = '10X genomics', bigger = TRUE, outline = TRUE, plain = TRUE, icon = icon("share-square"), status = "success", value=FALSE))),
+                                switchButton(inputId = "SwitchUpload", label = "Local file", value = TRUE, col = "GB", type = "YN"),
+                                useShinyjs(),
+                                hidden(fileInput('file1', '',
                                           accept = c(
                                             'text/csv',
                                             'text/comma-separated-values',
@@ -138,9 +158,11 @@ body <- dashboardBody(tags$head(includeCSS(rel = "stylesheet", type = "text/css"
                                             'text/plain',
                                             '.csv',
                                             '.tsv',
-                                            multiple = FALSE
-                                          )
-                                )
+                                            '.Rds',
+                                            '.mtx'),
+                                            multiple = TRUE
+                                )),
+                                hidden(shinyFilesButton('sfile', label = 'Browse...', title = 'Load file from sever', multiple = TRUE, icon=icon("upload")))
                                 ),
                               box(
                                 title = "Project summary",
@@ -155,6 +177,8 @@ body <- dashboardBody(tags$head(includeCSS(rel = "stylesheet", type = "text/css"
                             fluidRow(
                             box(title = "Data", status = "primary", solidHeader = FALSE,
                                 collapsed = FALSE, collapsible = TRUE, width=12,
+                                #tags$head(tags$style(HTML('.box{-webkit-box-shadow: none; -moz-box-shadow: none;box-shadow: none;}'))), 
+                                uiOutput("DTshow"),
                                 div(DT::dataTableOutput('dt') %>% withSpinner(type = 6, color="#bf00ff", size = 1))
                             )
                             )
@@ -168,16 +192,16 @@ body <- dashboardBody(tags$head(includeCSS(rel = "stylesheet", type = "text/css"
                                       useShinyjs(),  # Include shinyjs
                                       box(id = "checkList", title="iS-CellR analysis steps", status = "warning", collapsible = FALSE, solidHeader = TRUE, width=6, 
                                       fluidRow(column(8,
-                                      checkboxGroupInput('seuratSteps', "Select iS-CellR step to perform:", selectSteps),
-                                                        #list("PCA analysis" = "PCA", "tSNE analysis" = "tSNE", "Marker genes" = "Genes", "Features" = "Feat"))),
+                                      prettyCheckboxGroup(inputId = 'seuratSteps', label = "Select iS-CellR step to perform:", thick = TRUE, choices = selectSteps, animation = "pulse", status = "success"),
                                       actionButton("selectall", "Select All", class = "taskDFbutton")),
                                       column(4,
                                         useShinyjs(),
-                                        radioButtons('clustLabels', 'Lables for clusters:', 
-                                             c("Labels from header"='useheader',
+                                        prettyRadioButtons(inputId = 'clustLabels', label = 'Lables for clusters:', 
+                                              choices = c("Labels from header"='useheader',
                                                "Custom labels"='customLabels',
-                                               "Auto"='defLabels'),
-                                             'defLabels',inline=F))),
+                                               "Auto"='defLabels'), thick = FALSE, fill = TRUE, shape = "round",
+                                             animation = "pulse", status = "success",
+                                              selected = 'defLabels',inline = F))),
                                       useShinyjs(),  # Set up shinyjs
                                       tags$div(id="BOX4",
                                         bsModal(id="ClusterLabels", title="Define cluster labels", trigger = "customLabels", withSpinner(uiOutput("defineLable", width = "100%", height = "700px"), type = 6, color="#bf00ff", size = 1), 
