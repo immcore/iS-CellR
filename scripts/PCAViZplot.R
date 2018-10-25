@@ -5,12 +5,12 @@ font <- input$PCAvizfont
 plot_list <- list()
 dims = input$VizPCAuse1:input$VizPCAuse2
 
-df.pcs <- as.data.frame(PCAClustGlob$val@dr$pca@gene.loadings)
+df.pcs <- as.data.frame(scObject$val@dr$pca@gene.loadings)
 
 for (i in dims){
  
  	dataset <- df.pcs[DimTopGenes(
-      object = PCAClustGlob$val,
+      object = scObject$val,
       dim.use = i,
       reduction.type = "pca",
       num.genes = nGenes,

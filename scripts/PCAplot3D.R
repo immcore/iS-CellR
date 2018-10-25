@@ -1,19 +1,15 @@
 #!/usr/bin/env Rscript
 
-if(!isS4(PCAClustGlob$val) || (mode$n == 0 && mode$l == 1) || "defLabels"  %in% isolate(input$clustLabels) || input$changeLabels)
+
+if(isS4(scObject$val) || "defLabels" %in% isolate(input$clustLabels) || input$changeLabels)
 {
-    if(!isS4(PCAClustGlob$val) || (mode$n == 0 && mode$l == 1)){
-        PCAdata <- FindClusters(object = seuratObject$val, reduction.type = "pca", dims.use = 1:10, 
-                            resolution = 0.6, print.output = 0, save.SNN = TRUE)
-
-        PCAClustGlob$val <- PCAdata
-    }
-
-    ################## for Custom labels ################
+  ################## for Custom labels ################
   if("customLabels" %in% isolate(input$clustLabels)) {
     cluster.ids <- as.character(unlist(ClusterLabInfo$val[,1]))#, decreasing = FALSE)#c("CD4", "Bcells", "CD8cells",
     new.cluster.ids <- as.character(unlist(ClusterLabInfo$val[,2]))#c("CD4", "Bcells", "CD8cells", 
-    PCAClustGlob$val@ident <- plyr::mapvalues(x = PCAClustGlob$val@ident, from = cluster.ids, to = new.cluster.ids)
+    if(input$changeLabels){
+      scObject$val@ident <- plyr::mapvalues(x = scObject$val@ident, from = cluster.ids, to = new.cluster.ids)
+    }
     CInfo <- cbind(cluster.ids,new.cluster.ids)
     ClusterLabInfo$val <- CInfo
   }
@@ -22,10 +18,10 @@ if(!isS4(PCAClustGlob$val) || (mode$n == 0 && mode$l == 1) || "defLabels"  %in% 
     if(!is.null(dfcluster.ids$val)){
       new.cluster.ids <- as.character(unlist(ClusterLabInfo$val[,2]))
       current.ids <- as.character(unlist(ClusterLabInfo$val[,1]))#, decreasing = FALSE)#c("CD4", "Bcells", "CD8cells",
-      PCAClustGlob$val@ident <- plyr::mapvalues(x = PCAClustGlob$val@ident, from = new.cluster.ids, to = current.ids)
+      scObject$val@ident <- plyr::mapvalues(x = scObject$val@ident, from = new.cluster.ids, to = current.ids)
     } else {
       new.cluster.ids = ""
-      current.ids <- sort(as.character(unique(PCAClustGlob$val@ident)), decreasing = FALSE)
+      current.ids <- sort(as.character(unique(scObject$val@ident)), decreasing = FALSE)
     }
     cluster.ids <- current.ids
     CInfo <- cbind(cluster.ids,new.cluster.ids)
@@ -35,10 +31,10 @@ if(!isS4(PCAClustGlob$val) || (mode$n == 0 && mode$l == 1) || "defLabels"  %in% 
 
 ########PCAplot using ggplot2
 # Create data frame of clusters computed by Seurat
-df.cluster <- data.frame(Cell = names(PCAClustGlob$val@ident), Cluster = PCAClustGlob$val@ident)
+df.cluster <- data.frame(Cell = names(scObject$val@ident), Cluster = scObject$val@ident)
 
 # Create data frame of PCs compute by Seurat
-df.pc <- data.frame(PCAClustGlob$val@dr$pca@cell.embeddings)
+df.pc <- data.frame(scObject$val@dr$pca@cell.embeddings)
 # Add Cell column
 df.pc$Cell = rownames(df.pc)
 # Merge PC data frame to Cluster data frame
@@ -47,6 +43,7 @@ df.pc <- merge(df.pc, df.cluster, by = "Cell")
 # colors of points correspond to Cluster IDs
 # Make df.tsne global 
 
+#assign('PCAClusters', df.pc, envir=.GlobalEnv)
 PCAClusters$val <- df.pc
 mode$l <- 0
 }
