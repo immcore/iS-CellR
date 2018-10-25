@@ -12,7 +12,7 @@ rm(list = ls())
 source("installPkgsR.R")
 options(shiny.maxRequestSize = 6000*1024^2)
 source("helpers.R") # Load all the code needed to show feedback on a button click
-selectSteps <- list("Quality control and cell filtering", "Gene variability across single cells", "Linear dimensional reduction (PCA)", "Non-linear dimensional reduction (tSNE)", "Differentially expressed genes", "Discriminating marker genes")
+selectSteps <- list("Quality control and cell filtering", "Gene variability across single cells", "Linear dimensional reduction (PCA)", "Non-linear dimensional reduction (UMAP/tSNE)", "Differentially expressed genes", "Discriminating marker genes")
 
 generateReport <- function() {
   out.markdown <- ''
@@ -33,8 +33,10 @@ server <- function(input, output, session) {
   # Define variables for each user session
   source("setglobs.R")
   #source("sessionCommon.R", local=TRUE)
+  do.call(file.remove, list(list.files("/tmpfiles", full.names = TRUE)))
 
-
+  createAlert(session, "alertCITE", "success", title = "How to cite:",
+                              content = "Mitulkumar V Patel (2018). iS-CellR: a user-friendly tool for analyzing and visualizing single-cell RNA sequencing data, Bioinformatics, 1-2. doi: 10.1093/bioinformatics/bty517. https://doi.org/10.1093/bioinformatics/bty517", style="success", dismiss = FALSE, append = FALSE)
   dataModal <- function(failed = FALSE) {
     tags$div(id="loginBOX",
     modalDialog(
@@ -124,39 +126,142 @@ server <- function(input, output, session) {
     }
   })
 
+  output[["DTshow"]] <- renderUI({
+            #box(solidHeader = TRUE, width=7,
+                fluidRow(
+                    column(4,
+                      noUiSliderInput(inputId = "DTgenes", label = "Number of rows", step = 1, min = 1, 
+                                    max = 100, value = 50, color = "#ff9933", tooltips = TRUE, behaviour = "tap")), 
+                    column(4,
+                      noUiSliderInput(inputId = "DTcells", label = "Number of columns", step = 1, min = 1, 
+                                    max = 50, value = 10, color = "#ff9933", tooltips = TRUE, behaviour = "tap")),
+                    tags$br())#,
+                #fluidRow(tags$br())
+    })
+
+shinyFileChoose(input, 'sfile', session = session, roots = c(root='.'), filetypes=c('', 'txt','csv','tsv','rds','mtx'))
+
+shinyFileChoose(input, 'sfile_interHet', session = session, roots = c(root='.'), filetypes=c('', 'txt','csv','tsv'))
+
+count_data <- reactive({
+
+    if(input$SwitchUpload == "TRUE"){
+      inFile <- input$file1
+    } else {
+      inFile <- parseFilePaths(roots=c(root='.'), input$sfile)
+    }
+  
+      if (is.null(inFile)){ 
+            #return(NULL)
+            createAlert(session, "alert", "warning", title = "File Not Loaded Yet!",
+                        content = "Please upload file...", style="danger", dismiss = FALSE, append = FALSE)
+      } else {
+            if(input$load10x){
+              from <- inFile$datapath
+              to <- file.path(dirname(from), basename(inFile$name))
+              file.rename(from, to)
+              path10x <- sub("/[^/]+$", "", inFile$datapath)
+              count10X <- Read10X(data.dir = path10x[1])
+              countMatrix <- as.data.frame(as.matrix(count10X))
+            } else if(file_ext(inFile$name) == "rds"){
+              countRds$val <- readRDS(file = inFile$datapath)
+              countMatrix <- as.data.frame(as.matrix(countRds$val@data))
+            } else {
+              countMatrix <- fread(inFile$datapath, header = input$header, 
+                              sep = input$sep, quote = input$quote, stringsAsFactors=FALSE)
+              countMatrix <- as.matrix(countMatrix, rownames=1)
+            }
+          countFile$val <- countMatrix
+          geneID <- rownames(countMatrix)
+          GeneNames$val <- geneID
+          #rownames(countMatrix) <- sapply(rownames(countMatrix), function(geneID) 
+          #       toString(tags$a(href=paste0(link2Ens(geneID)), geneID, target="_blank")))
+
+          if (!is.null(countMatrix)){
+              updateNoUiSliderInput(session, "DTgenes", range = c(1,nrow(data.matrix(countMatrix))))
+              updateNoUiSliderInput(session, "DTcells", range = c(1,ncol(data.matrix(countMatrix))))
+              createAlert(session, "alert", "success", title = "File Loading Complete",
+                   content = "You can now proceed...", style="success", dismiss = FALSE, append = FALSE)
+              if(!is.null(input$DTgenes) && !is.null(input$DTcells) && input$DTgenes <= nrow(countMatrix) && input$DTcells <= ncol(countMatrix)){
+                    countMatrix[(1:input$DTgenes),c(1:input$DTcells), drop=FALSE]
+              } 
+          }
+      }
+  })
+
   # read in the data
-  count_data <- reactive({
+  count_datalocal <- reactive({
     #validate(need(input$file1 != "", "Please upload a count file"))
-    inFile <- input$file1
+    #if(input$SwitchUpload == "TRUE"){
+    #  inFile <- input$file1      
+    #} else {
+      inFile <- parseFilePaths(roots=c(wd='.'), input$sfile)
+    #}
+
     if (is.null(inFile)){ 
       #return(NULL)
       createAlert(session, "alert", "warning", title = "File Not Loaded Yet!",
                   content = "Please upload file...", style="danger", dismiss = FALSE, append = FALSE)
     } else {
-    countMatrix <- read.delim(inFile$datapath, header = input$header,
-                           sep = input$sep, quote = input$quote, stringsAsFactors=FALSE, row.names = 1)
+      if(input$load10x){
+        from <- input$file1$datapath
+        to <- file.path(dirname(from), basename(input$file1$name))
+        file.rename(from, to)
+        path10x <- sub("/[^/]+$", "", inFile$datapath)
+        count10X <- Read10X(data.dir = path10x[1])
+        countMatrix <- as.data.frame(as.matrix(count10X))
+      } else if(file_ext(input$file1$name) == "rds"){
+        countRds$val <- readRDS(file = inFile$datapath)
+        countMatrix <- as.data.frame(as.matrix(countRds$val@data))
+      } else {
+        countMatrix <- fread(inFile$datapath, header = input$header, 
+                        sep = input$sep, quote = input$quote, stringsAsFactors=FALSE)
+        countMatrix <- as.matrix(countMatrix, rownames=1)
+        
+        #countMatrix <- read.delim(inFile$datapath, header = input$header,
+        #                 sep = input$sep, quote = input$quote, stringsAsFactors=FALSE, row.names = 1)
+
+        #after <- Sys.time()
+        #cat(after-before)
+
+      }
     countFile$val <- countMatrix
     geneID <- rownames(countMatrix)
     GeneNames$val <- geneID
     #rownames(countMatrix) <- sapply(rownames(countMatrix), function(geneID) 
     #       toString(tags$a(href=paste0(link2Ens(geneID)), geneID, target="_blank")))
 
-    if (!is.null(countMatrix)){ 
-    createAlert(session, "alert", "success", title = "File Loading Complete",
-                content = "You can now proceed...", style="success", dismiss = FALSE, append = FALSE)    
-    countMatrix
+      if (!is.null(countMatrix)){
+              updateNoUiSliderInput(session, "DTgenes", range = c(1,nrow(data.matrix(countMatrix))))
+              updateNoUiSliderInput(session, "DTcells", range = c(1,ncol(data.matrix(countMatrix))))
+              #Sys.sleep(1)
+              createAlert(session, "alert", "success", title = "File Loading Complete",
+                content = "You can now proceed...", style="success", dismiss = FALSE, append = FALSE)
+            if(!is.null(input$DTgenes) && !is.null(input$DTcells) && input$DTgenes <= nrow(countMatrix) && input$DTcells <= ncol(countMatrix)){
+                countMatrix[(1:input$DTgenes),c(1:input$DTcells), drop=FALSE]
+            } 
+      }
     }
-   }
   })
-  
+
+ # observeEvent(input$sfile,{
+
   output$dt <- DT::renderDataTable({
        #DT::datatable(count_data(), escape=FALSE, selection = 'none', options = list(scrollX = TRUE)) %>% formatStyle(0, cursor = 'pointer')
     DT::datatable(count_data(), escape=FALSE, selection = 'none', options = list(searchHighlight = TRUE, scrollX = TRUE))
   })
-  
-  observeEvent(c(input$file1,input$sep,input$quote,input$header),{
+#})
+
+#  observe({
+#    if(!is.null(countFile$val)){
+#        updateSliderInput(session, "DTgenes", max = nrow(data.matrix(countFile$val)))
+#        updateSliderInput(session, "DTcells", max = ncol(data.matrix(countFile$val)))
+#    }
+#    })
+
+  observeEvent(c(input$sfile,input$file1,input$load10x,input$sep,input$quote,input$header),{
   output$DataSummary <- renderFormattable({
-    if(length(input$file1) != 0) { 
+    if(!is.null(countFile$val)) { 
       countFile <- data.matrix(countFile$val)
       #genes50 <- rowSums(countFile>0) # genes found in > 50 cells
       expr0 <- sum(colSums(countFile == 0))
@@ -198,7 +303,7 @@ server <- function(input, output, session) {
 
  observeEvent(input$seuratSteps,{
   output$chsteps <- renderText({
-    isRequiredSTEP()
+    #isRequiredSTEP()
     runsteps <- paste(input$seuratSteps, collapse = ", ")
     runsteps
     #Selected$steps <<- runsteps
@@ -206,8 +311,20 @@ server <- function(input, output, session) {
 })
  ####### Enable/Disable UI elements #########
  
-  observe({
-   if(!is.null(input$seuratSteps) && !is.null(input$file1)){
+ observeEvent(input$SwitchUpload,{
+   if(input$SwitchUpload == "TRUE"){
+     shinyjs::show("file1")
+     shinyjs::hide("sfile")
+   }
+   else{
+     shinyjs::hide("file1")
+     shinyjs::show("sfile")
+   }
+ })
+
+
+observe({
+   if(!is.null(input$seuratSteps) && (!is.null(input$file1) || !is.null(input$sfile))){
      shinyjs::enable("seuratRUN")
    }
    else{
@@ -216,7 +333,30 @@ server <- function(input, output, session) {
  })
 
  observe({
-   if((!is.null(input$seuratSteps) || !is.null(input$file1)) && (!is.null(DownloadPlot$val$PCAplot2D) || !is.null(DownloadPlot$val$tSNEplot2D) || !is.null(DownloadPlot$val$Joyplot) || !is.null(DownloadPlot$val$Vlnplot) || !is.null(DownloadPlot$val$Featureplot) || !is.null(DownloadPlot$val$Dotplot) || !is.null(DownloadPlot$val$Heatmap) || !is.null(DownloadPlot$val$CoExprplot) || !is.null(DownloadPlot$val$InterHet) || !is.null(DownloadPlot$val$IntraHetplotly))){
+   if(!is.null(countFile$val)){
+     shinyjs::show("DTshow")
+   }
+   else{
+     shinyjs::hide("DTshow")
+   }
+ })
+
+# observe({
+#   if("_" %in% colnames(countFile$val)){
+#    updateRadioButtons(session, 'clustLabels', 'Lables for clusters:', choices=c("Labels from header"='useheader',
+#                                               "Custom labels"='customLabels',
+#                                               "Auto"='defLabels'),
+#                                               selected='defLabels',inline=F)
+#   }
+#   else{
+#    updateRadioButtons(session, 'clustLabels', 'Lables for clusters:', choices=c("Custom labels"='customLabels',
+#                                               "Auto"='defLabels'),
+#                                               selected='defLabels',inline=F)
+#   }
+# })
+
+ observe({
+   if((!is.null(input$seuratSteps) || !is.null(input$file1) || !is.null(input$sfile)) && (!is.null(DownloadPlot$val$PCAplot2D) || !is.null(DownloadPlot$val$tSNEplot2D) || !is.null(DownloadPlot$val$Joyplot) || !is.null(DownloadPlot$val$Vlnplot) || !is.null(DownloadPlot$val$Featureplot) || !is.null(DownloadPlot$val$Dotplot) || !is.null(DownloadPlot$val$Heatmap) || !is.null(DownloadPlot$val$CoExprplot) || !is.null(DownloadPlot$val$InterHet) || !is.null(DownloadPlot$val$IntraHetplotly))){
      shinyjs::enable("clustLabels")
    }
    else{
@@ -254,12 +394,12 @@ server <- function(input, output, session) {
    if(!is.null(DownloadPlot$val$PCAplot)){
      shinyjs::enable("PCA2Dfull")
      shinyjs::enable("downPCA2D")
-     shinyjs::show("PrintLabelPCA")
+     shinyjs::show("SwitchLabelPCA")
      }
    else{
      shinyjs::disable("PCA2Dfull")
      shinyjs::disable("downPCA2D")
-     shinyjs::hide("PrintLabelPCA")
+     shinyjs::hide("SwitchLabelPCA")
    }
  })
  
@@ -289,12 +429,14 @@ server <- function(input, output, session) {
    if(!is.null(DownloadPlot$val$tSNEplot)){
      shinyjs::enable("tSNE2Dfull")
      shinyjs::enable("downtSNE2D")
-     shinyjs::show("PrintLabeltSNE")
+     shinyjs::show("SwitchLabeltSNE")
+     shinyjs::show("choose_Dimreduction1")
    }
    else{
      shinyjs::disable("tSNE2Dfull")
      shinyjs::disable("downtSNE2D")
-     shinyjs::hide("PrintLabeltSNE")
+     shinyjs::hide("SwitchLabeltSNE")
+     shinyjs::hide("choose_Dimreduction1")
    }
  })
  
@@ -375,12 +517,16 @@ server <- function(input, output, session) {
    if(!is.null(DownloadPlot$val$Featureplot)){
      shinyjs::enable("Featureplotfull")
      shinyjs::enable("downFeatureplot")
-     shinyjs::show("PrintLabel_Featplot")
+     shinyjs::show("SwitchLabelFeatPlot")
+     shinyjs::show("choose_Dimreduction2")
+     shinyjs::show("ExprCutoffFeat")
    }
    else{
      shinyjs::disable("Featureplotfull")
      shinyjs::disable("downFeatureplot")
-     shinyjs::hide("PrintLabel_Featplot")
+     shinyjs::hide("SwitchLabelFeatPlot")
+     shinyjs::hide("choose_Dimreduction2")
+     shinyjs::hide("ExprCutoffFeat")
    }
  })
  
@@ -392,16 +538,42 @@ server <- function(input, output, session) {
      shinyjs::enable("updateHeatmap")
    }
  })
+  observeEvent(input$SwitchHeatmap,{
+   if(input$SwitchHeatmap == "TRUE"){
+      shinyjs::disable("choose_HeatmapGenes")
+      shinyjs::show("TopDiffHeatmap")
+      if(!is.null(DownloadPlot$val$Heatmap)){
+        shinyjs::enable("TopDiffHeatmap")
+      } else {
+        shinyjs::disable("TopDiffHeatmap")
+      }
+   }
+   else{
+     shinyjs::enable("choose_HeatmapGenes")
+     shinyjs::hide("TopDiffHeatmap")
+   }
+ })
  observe({
    if(!is.null(DownloadPlot$val$Heatmap)){
      shinyjs::enable("Heatmapfull")
      shinyjs::enable("downHeatmap")
-   }
-   else{
+     shinyjs::enable("TopDiffHeatmap")
+   } else {
      shinyjs::disable("Heatmapfull")
      shinyjs::disable("downHeatmap")
+     shinyjs::disable("TopDiffHeatmap")
    }
  })
+
+#observeEvent(input$changeLabels,{
+#  req(input$changeLabels)
+#   if(input$ClusterSel %in% scObject$val@ident){
+#     shinyjs::disable("UpCluster")
+#   }
+#   else{
+#     shinyjs::enable("UpCluster")
+#   }
+# })
  
  observe({
    if(length(input$CoExprGenes) <= 1){
@@ -416,19 +588,41 @@ server <- function(input, output, session) {
    if(!is.null(DownloadPlot$val$CoExprplot)){
      shinyjs::enable("CoExprplotfull")
      shinyjs::enable("downCoExprplot")
-     shinyjs::show("PrintLabel")
+     shinyjs::show("SwitchLabelCoExpr")
      shinyjs::show("GeneNotFound_CoExpr")
+     shinyjs::show("choose_Dimreduction3")
    }
    else{
      shinyjs::disable("CoExprplotfull")
      shinyjs::disable("downCoExprplot")
-     shinyjs::hide("PrintLabel")
+     shinyjs::hide("SwitchLabelCoExpr")
      shinyjs::show("GeneNotFound_CoExpr")
+     shinyjs::hide("choose_Dimreduction3")
    }
  })
  
+observe({
+   if(!is.null(input$MarkersCluster1) && length(input$MarkersCluster2) >= 1){
+     shinyjs::enable("ShowMarkers")
+   }
+   else{
+     shinyjs::disable("ShowMarkers")
+   }
+ })
+
+ observeEvent(input$SwitchUpload2,{
+   if(input$SwitchUpload2 == "TRUE"){
+     shinyjs::show("geneList")
+     shinyjs::hide("sfile_interHet")
+   }
+   else{
+     shinyjs::hide("geneList")
+     shinyjs::show("sfile_interHet")
+   }
+ })
+
  observe({
-   if(!is.null(input$geneList)){
+   if(!is.null(input$geneList) || !is.null(input$sfile_interHet)){
      shinyjs::enable("updateInterHetplot")
    }
    else{
@@ -469,13 +663,11 @@ server <- function(input, output, session) {
  if(input$selectall == 0) return(NULL)
    else if(input$selectall %% 2 == 0) 
     {
-       #myChoices = list("PCA analysis" = "PCA", "tSNE analysis" = "tSNE", "Marker genes" = "Genes", "Features" = "Feat")
-       updateCheckboxGroupInput(session,"seuratSteps","Select iS-CellR step to perform:", choices=selectSteps)
+      updatePrettyCheckboxGroup(session = session, inputId = "seuratSteps", label = "Select iS-CellR step to perform:", choices = selectSteps, prettyOptions = list(thick = TRUE, animation = "pulse", status = "success"))
     } 
     else #if(input$selectall > 0)
     {
-       #myChoices = list("PCA analysis" = "PCA", "tSNE analysis" = "tSNE", "Marker genes" = "Genes", "Features" = "Feat")
-       updateCheckboxGroupInput(session,"seuratSteps","Select iS-CellR step to perform:", choices=selectSteps, selected=unlist(selectSteps))
+      updatePrettyCheckboxGroup(session = session, inputId = "seuratSteps", label = "Select iS-CellR step to perform:", choices = selectSteps, selected = unlist(selectSteps), prettyOptions = list(thick = TRUE, animation = "pulse", status = "success"))
     }
 })  
 
@@ -708,7 +900,7 @@ output$ToolList <- renderFormattable({
 
 observeEvent(input$changeLabels,{
   output$seuratPCAplot <- renderPlotly({
-    req(c(input$changeLabels,input$PrintLabelPCA))
+    req(c(input$changeLabels,input$SwitchLabelPCA))
       isolate({
           source("scripts/PCAplot.R", local = TRUE)$value
       })
@@ -725,7 +917,7 @@ toListen <- eventReactive(input$clustLabels, {
   observeEvent(toListen(),{
   output$seuratPCAplot <- renderPlotly({
     obsList <- list()
-    obsList[[length(toListen())+1]] <- input$PrintLabelPCA
+    obsList[[length(toListen())+1]] <- input$SwitchLabelPCA
       req(obsList)
       isolate({
           source("scripts/PCAplot.R", local = TRUE)$value
@@ -761,7 +953,7 @@ output$PCA2DplotZoom <- renderPlotly({
   
   observeEvent(input$changeLabels,{
   output$seurattSNEplot <- renderPlotly({
-    req(c(input$changeLabels,input$PrintLabeltSNE))
+    req(c(input$changeLabels,input$SwitchLabeltSNE,input$DimA))
       isolate({
           source("scripts/tSNEplot.R", local = TRUE)$value
       })
@@ -771,7 +963,9 @@ output$PCA2DplotZoom <- renderPlotly({
   observeEvent(toListen(),{
   output$seurattSNEplot <- renderPlotly({
     obsList <- list()
-    obsList[[length(toListen())+1]] <- input$PrintLabeltSNE
+    obsList[[length(toListen())+1]] <- input$SwitchLabeltSNE
+    obsList[[length(toListen())+1]] <- input$DimA
+
     req(obsList)
 
     isolate({
@@ -910,16 +1104,16 @@ Sys.sleep(1)
         })
     })
   
-    output$seuratHeatmap <- renderPlot({
-      req(input$updateHeatmap)
+    output$seuratHeatmap <- renderPlotly({
+      req(c(input$updateHeatmap,input$SwitchHeatmap == "TRUE"))
         isolate({
           source("scripts/Heatmap_Feature.R", local = TRUE)$value
         })
     })
-    output$seuratHeatmapZoom <- renderPlot({
+    output$seuratHeatmapZoom <- renderPlotly({
       req(input$Heatmapfull)
         isolate({
-          print(DownloadPlot$val$Heatmap)
+          print(DownloadPlot$val$Heatmaply)
         })
     })
 #})
@@ -965,7 +1159,7 @@ Sys.sleep(1)
     })
   })
   output$seuratIntraHetplot <- renderPlotly({
-    requireGeneList()
+    #requireGeneList()
     req(input$updateIntraHetplot)
     isolate({
     source("scripts/IntraHet_plot.R", local = TRUE)$value
@@ -980,9 +1174,18 @@ Sys.sleep(1)
   })
 })
 
-observeEvent(c(input$changeLabels,input$PrintLabel_Featplot),{
+observeEvent(c(input$SwitchHeatmap,input$updateHeatmap,input$TopDiffHeatmap),{
+  output$seuratHeatmap <- renderPlot({
+      req(c(input$SwitchHeatmap,input$updateHeatmap,input$TopDiffHeatmap))
+        isolate({
+          source("scripts/Heatmap_Feature.R", local = TRUE)$value
+        })
+    })
+})
+
+observeEvent(c(input$changeLabels,input$SwitchLabelFeatPlot,input$ExprCutoffFeat,input$updateFeatplot,input$DimB),{
 output$seuratFeatureplot <- renderPlotly({
-      req(c(input$changeLabels,input$PrintLabel_Featplot))
+      req(c(input$changeLabels,input$SwitchLabelFeatPlot,input$ExprCutoffFeat,input$updateFeatplot,input$DimB))
         isolate({
           source("scripts/Featureplot_Feature.R", local = TRUE)$value
         })
@@ -1001,9 +1204,9 @@ CoExprPLOT_Err1 <- eventReactive(input$updateCoExprplot,{
     )
   })
 
-observeEvent(c(input$changeLabels,input$PrintLabel),{
+observeEvent(c(input$changeLabels,input$SwitchLabelCoExpr,input$DimC),{
 output$seuratCoExprplot <- renderPlotly({
-    req(c(input$changeLabels,input$PrintLabel))
+    req(c(input$changeLabels,input$SwitchLabelCoExpr,input$DimC))
       isolate({
         source("scripts/CoExpr_Feature.R", local = TRUE)$value
       })
@@ -1062,10 +1265,16 @@ output$seuratCoExprplot <- renderPlotly({
     })
   })
   
+  shinyFileChoose(input, 'sfile_interHet', session = session, roots = c(root='.'), filetypes=c('', 'txt','csv','tsv'))
+
     # read in the data GeneList1
   GeneList <- reactive({
-    validate(need(input$geneList, "Please upload a Gene list file"))
-    inFile <- input$geneList
+    if(input$SwitchUpload2 == "TRUE"){
+      inFile <- input$geneList
+    } else {
+      inFile <- parseFilePaths(roots=c(root='.'), input$sfile_interHet)
+    }
+
     if (is.null(inFile)) return(NULL)
     GeneList <- read.delim(inFile$datapath, header = input$geneheader,
                            sep = input$genesep, stringsAsFactors=FALSE)
@@ -1073,11 +1282,11 @@ output$seuratCoExprplot <- renderPlotly({
     GeneList
   })
   
-  requireGeneList <- reactive({ # reactive part = thos code is repeated when user input changes
-    validate( # define error messages if user doesn't choose anything
-      need(input$geneList, "Please upload a Gene list file")
-    )
-  })
+  #requireGeneList <- reactive({ # reactive part = thos code is repeated when user input changes
+  #  validate( # define error messages if user doesn't choose anything
+  #    need(input$geneList, "Please upload a Gene list file")
+  #  )
+  #})
   
   requireTSNE <- reactive({ # reactive part = thos code is repeated when user input changes
     validate( # define error messages if user doesn't choose anything
@@ -1092,7 +1301,35 @@ output$seuratCoExprplot <- renderPlotly({
     brush1Data
   })
   
-  output$brush1 <- DT::renderDataTable(brushedPoints(tSNEplotDT(), input$tSNEbrush, xvar = "tSNE_1", yvar = "tSNE_2"), options = list(scrollX = TRUE), escape = FALSE)
+  
+  observeEvent(input$DimA,{
+    req(input$DimA)
+    if(input$DimA == "UMAP"){
+      dimPkg$val <- input$DimA
+    } else {
+      dimPkg$val <- "FItSNE_"
+    }
+  })
+
+  observeEvent(input$DimB,{
+    req(input$DimB)
+    if(input$DimB == "UMAP"){
+      dimPkg$val <- input$DimB
+    } else {
+      dimPkg$val <- "FItSNE_"
+    }
+  })
+
+  observeEvent(input$DimC,{
+    req(input$DimC)
+    if(input$DimC == "UMAP"){
+      dimPkg$val <- input$DimC
+    } else {
+      dimPkg$val <- "FItSNE_"
+    }
+  })
+
+  output$brush1 <- DT::renderDataTable(brushedPoints(tSNEplotDT(), input$tSNEbrush, xvar = paste(dimPkg$val,"1",sep=""), yvar = paste(dimPkg$val,"2",sep="")), options = list(scrollX = TRUE), escape = FALSE)
 
   output$tSNEplot3 <- DT::renderDataTable(tSNEplotDT(), options = list(scrollX = TRUE), server = FALSE, escape = FALSE, selection = 'none')
 
@@ -1113,9 +1350,145 @@ output$seuratCoExprplot <- renderPlotly({
     content = function(file) {
     rows = input$brush1_rows_all #download rows on all pages after being filtered
     #rows = input$brush1_rows_current # download rows on current page
-    write.table(brushedPoints(tSNEplotDT(), input$tSNEbrush, xvar = "tSNE_1", yvar = "tSNE_2")[rows,  , drop = FALSE], file, sep="\t", row.names = F)
+    write.table(brushedPoints(tSNEplotDT(), input$tSNEbrush, xvar = paste(dimPkg$val,"1",sep=""), yvar = paste(dimPkg$val,"2",sep=""))[rows,  , drop = FALSE], file, sep="\t", row.names = F)
   })    
 })
+
+ClusterMarkers <- reactive({
+  req(input$ClusterSel)
+     isolate({
+        source("scripts/ClusterMarkers.R", local = TRUE)$value
+      })
+})
+
+observeEvent(c(input$changeLabels,input$clustLabels),{
+   req(c(input$changeLabels,input$clustLabels))
+  #updateClusters <- reactive({
+  #req(input$ClusterSel)
+  if(isS4(scObject$val)){
+     isolate({
+        source("scripts/UpdateClusters.R", local = TRUE)$value
+      })
+     Clusters$val <- sort(as.character(unique(scObject$val@ident)), decreasing = FALSE)
+   }
+})
+
+observe({
+  req(c(input$clustLabels,input$changeLabels,input$ApplyFilter,input$RemoveFilter))
+#   onclick('ClusterSel', function(){ 
+  if(!is.null(Clusters$val)){
+    #if(!is.null(input$ClusterSel) || !input$ClusterSel %in% Clusters$val){
+      #Clusters$val <- sort(as.character(unique(scObject$val@ident)), decreasing = FALSE)
+      updateSelectizeInput(session, 'ClusterSel', choices = Clusters$val, server=TRUE)
+      updateSelectizeInput(session, 'MarkersCluster1', choices = Clusters$val, server=TRUE)
+      updateSelectizeInput(session, 'MarkersCluster2', choices = Clusters$val, server=TRUE)
+    #}
+  }
+#  })
+})
+
+
+#observeEvent(input$ClusterSel,{
+
+#  req(input$SelButton)
+#  observe({
+#  req(input$ClusterSel)
+  output$DT_ClusterSel <- DT::renderDataTable(server = FALSE,{
+    DT::datatable(ClusterMarkers(), extensions = c('Buttons','Responsive'), escape=FALSE, selection = 'none', 
+                                      options = list(
+                                        paging = TRUE,
+                                        searching = TRUE,
+                                        searchHighlight = TRUE,
+                                        scrollX = TRUE,
+                                        #fixedColumns = TRUE,
+                                        #autoWidth = TRUE,
+                                        ordering = TRUE,
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel')
+                                      ),
+                                      class = "display")
+  })
+#})
+
+
+distinguishmarkers <- reactive({
+  req(input$ShowMarkers)
+    isolate({
+      source("scripts/DistinguishMarkers.R", local = TRUE)$value
+    })
+})
+
+#observeEvent(input$ShowMarkers,{
+#  req(input$ShowMarkers)
+output$DT_Findmarkers <- DT::renderDataTable(server = FALSE,{
+    DT::datatable(distinguishmarkers(), extensions = c('Buttons','Responsive'), escape=FALSE, selection = 'none', 
+                                      options = list(
+                                        paging = TRUE,
+                                        searching = TRUE,
+                                        searchHighlight = TRUE,
+                                        scrollX = TRUE,
+                                        #fixedColumns = TRUE,
+                                        #autoWidth = TRUE,
+                                        ordering = TRUE,
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel')
+                                      ),
+                                      class = "display")
+    })
+#})
+
+output$allmarkers_show <- renderText({
+        HTML(paste0("Specify number (>0) to list top markers for each cluster. Select <strong>",0,"</strong> to list ALL markers for each cluster.</br></br>"))
+     })
+
+Allmarkers <- reactive({
+  req(input$Topmarkers)
+     isolate({
+        source("scripts/AllMarkers.R", local = TRUE)$value
+      })
+})
+
+observeEvent(input$Topmarkers,{
+  req(input$Topmarkers)
+  output$DT_Allmarkers <- DT::renderDataTable(server = FALSE,{
+    DT::datatable(Allmarkers(), extensions = c('Buttons','Responsive'), escape=FALSE, selection = 'none', 
+                                      options = list(
+                                        paging = TRUE,
+                                        searching = TRUE,
+                                        searchHighlight = TRUE,
+                                        scrollX = TRUE,
+                                        #fixedColumns = TRUE,
+                                        #autoWidth = TRUE,
+                                        ordering = TRUE,
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel')
+                                      ),
+                                      class = "display")
+    })
+})
+
+observeEvent(input$ShowMarkers,{
+  req(input$ShowMarkers)
+  MarkersCluster1 <- as.character(input$MarkersCluster1)
+  MarkersCluster2 <- paste(as.character(unlist(strsplit(input$MarkersCluster2," "))), sep = " ", collapse = ", ") 
+  output$distinguish_msg <- renderText({
+    msg <- paste0("Listed markers distinguish cluster <strong>", MarkersCluster1, " ", dashboardLabel("Group 1", status = "success"), "</strong> from clusters <strong>", MarkersCluster2, " ", dashboardLabel("Group 2", status = "primary"), "</strong>.")
+    HTML(paste(msg))
+    })
+  })
+
+observe({
+  #if(!is.null(DownloadPlot$val$DistHeatmap)){
+    output$distHeatMap_msg <- renderText({
+        msg <- paste0("<strong>The Heatmap shows all up and down regulated genes with following cutoff: ", dashboardLabel("Padj < 0.05", status = "success"), " and ", dashboardLabel("LogFC > 1", status = "primary"), "</strong>")
+        HTML(paste(msg))
+    })
+  #}
+})
+
+output$Heatheader <- renderText({
+      HTML(paste0("<h5>","Use top markers","</h5>"))
+  })
 
 observe({
   output$header <- renderText({
@@ -1140,15 +1513,15 @@ observe({
     output$GeneNotFound_Joy <- renderValueBox({
       if(is.null(GenesAbsent$val)) {
           valueBox(
-            unlist(length(selectedGenes)), HTML(paste("<strong>","Success .!!  ","</strong>"," All Genes found!")), icon = icon("thumbs-up", "fa-6x")
+            unlist(length(selectedGenes)), HTML(paste("<strong>","Success .!!  ","</strong>"," All Genes found!")), icon = icon("thumbs-up")
           ,color="green")
           } else if(length(GenesAbsent$val) == length(selectedGenes)) {
           valueBox(
-            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Failed .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("ban", "fa-6x")
+            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Failed .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("ban")
           ,color="red")  
           } else if(!is.null(GenesAbsent$val) && !is.null(DownloadPlot$val$Joyplot)) {
           valueBox(
-            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Warning .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("exclamation-triangle", "fa-6x")
+            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Warning .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("exclamation-triangle")
           ,color="yellow")
           }
        })
@@ -1163,11 +1536,11 @@ observe({
           ,color="green")
           } else if(length(GenesAbsent$val) == length(selectedGenes)) {
           valueBox(
-            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Failed .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("ban", "fa-6x")
+            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Failed .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("ban")
           ,color="red")  
           } else if(!is.null(GenesAbsent$val) && !is.null(DownloadPlot$val$Vlnplot)) {
           valueBox(
-            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Warning .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("exclamation-triangle", "fa-6x")
+            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Warning .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("exclamation-triangle")
           ,color="yellow")
           }
        })
@@ -1182,11 +1555,11 @@ observe({
           ,color="green")
           } else if(length(GenesAbsent$val) == length(selectedGenes)) {
           valueBox(
-            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Failed .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("ban", "fa-6x")
+            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Failed .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("ban")
           ,color="red")  
           } else if(!is.null(GenesAbsent$val) && !is.null(DownloadPlot$val$Featureplot)) {
           valueBox(
-            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Warning .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("exclamation-triangle", "fa-6x")
+            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Warning .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("exclamation-triangle")
           ,color="yellow")
           }
        })
@@ -1201,11 +1574,11 @@ observe({
           ,color="green")
           } else if(length(GenesAbsent$val) == length(selectedGenes)) {
           valueBox(
-            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Failed .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("ban", "fa-6x")
+            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Failed .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("ban")
           ,color="red")  
           } else if(!is.null(GenesAbsent$val) && !is.null(DownloadPlot$val$Dotplot)) {
           valueBox(
-            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Warning .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("exclamation-triangle", "fa-6x")
+            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Warning .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("exclamation-triangle")
           ,color="yellow")
           }
        })
@@ -1220,11 +1593,11 @@ observe({
           ,color="green")
           } else if(length(GenesAbsent$val) == length(selectedGenes)) {
           valueBox(
-            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Failed .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("ban", "fa-6x")
+            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Failed .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("ban")
           ,color="red")  
           } else if(!is.null(GenesAbsent$val) && !is.null(DownloadPlot$val$Heatmap)) {
           valueBox(
-            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Warning .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("exclamation-triangle", "fa-6x")
+            unlist(length(GenesAbsent$val)), HTML(paste("<strong>","Warning .!!  ","</strong>", paste("<em>", unlist(GenesAbsent$val), "</em>", collapse = ", "), " NOT FOUND")), icon = icon("exclamation-triangle")
           ,color="yellow")
           }
        })
@@ -1238,19 +1611,19 @@ observe({
    output$GeneNotFound_CoExpr <- renderValueBox({
       if(!is.null(GenesAbsent$val)) {
           valueBox(
-            unlist(GenesAbsent$val), HTML(paste("<strong>","Failed .!!  ","</strong>", "Genes not found")), icon = icon("ban", "fa-6x")
+            unlist(GenesAbsent$val), HTML(paste("<strong>","Failed .!!  ","</strong>", "Genes not found")), icon = icon("ban")
           ,color="red")  
           } else if(CoExprValue$val$Gene1Max < input$ExprCutoff || !is.null(CoExprValue$val$Gene1Ab)){
           valueBox(
-            CoExprValue$val$Gene1, HTML(paste("<strong>","Warning .!!  ","</strong>", " Expression threshold too high")), icon = icon("ban", "fa-6x")
+            CoExprValue$val$Gene1, HTML(paste("<strong>","Warning .!!  ","</strong>", " Expression threshold too high")), icon = icon("ban")
           ,color="yellow")  
           } else if(CoExprValue$val$Gene2Max < input$ExprCutoff || !is.null(CoExprValue$val$Gene2Ab)){
           valueBox(
-            CoExprValue$val$Gene2, HTML(paste("<strong>","Warning .!!  ","</strong>", " Expression threshold too high")), icon = icon("ban", "fa-6x")
+            CoExprValue$val$Gene2, HTML(paste("<strong>","Warning .!!  ","</strong>", " Expression threshold too high")), icon = icon("ban")
          ,color="yellow")  
           } else if(!is.null(CoExprValue$val$Genes)){
           valueBox(
-            paste(CoExprValue$val$Genes[1],",",CoExprValue$val$Genes[2]), HTML(paste("<strong>","Warning .!!  ","</strong>", " Co-expression threshold too high")), icon = icon("ban", "fa-6x")
+            paste(CoExprValue$val$Genes[1],",",CoExprValue$val$Genes[2]), HTML(paste("<strong>","Warning .!!  ","</strong>", " Co-expression threshold too high")), icon = icon("ban")
          ,color="yellow")  
           }
        })
@@ -1430,33 +1803,48 @@ observe({
   
   output$iSCellRreport <- downloadHandler(
     filename = function() {
-      paste('iS-CellR-report', sep = '.', 'html')
+      now <- Sys.time()
+      paste(str_replace_all(input$username,"\\s+","_"),"_",format(now,"%d%m%Y_"),"iS-CellR_report.zip", sep = "")
       #switch(
       #        input$format, PDF = 'pdf', HTML = 'html', Word = 'docx'
       #))
     },
-    content = function(file) {
+    content = function(fname) {
+      files <- c()
       if (file.exists('iS-CellR-report.html')) file.remove('iS-CellR-report.html')
       src <- normalizePath('iS-CellR-report.Rmd')
       
       # temporarily switch to the temp dir, in case you do not have write
       # permission to the current working directory
-      owd <- setwd(tempdir())
-      on.exit(setwd(owd))
+      tmpdir <- tempdir()
+      setwd(tempdir())
+      #owd <- setwd(tempdir())
+      #on.exit(setwd(owd))
       file.copy(src, 'iS-CellR-report.Rmd', overwrite = TRUE)
+      
       withBusyIndicatorServer("iSCellRreport", {
-        Sys.sleep(1)
+      #  Sys.sleep(1)
       out <- rmarkdown::render('iS-CellR-report.Rmd',
-                               #params = list(text = input$text),
-                               envir = new.env(parent = globalenv()
-                               #switch(input$format,
-                              #        PDF = pdf_document(), 
-                               #       HTML = html_document(), 
-                              #        Word = word_document()
-                               ))
-      file.rename(out, file)
+                                #params = list(text = input$text),
+                                envir = new.env(parent = globalenv()
+                                #switch(input$format,
+                                #     PDF = pdf_document(), 
+                                #     HTML = html_document(), 
+                                #     Word = word_document()
+                              ))
+      htm <- paste("iS-CellR-",str_replace_all(input$projectname,"\\s+","_"),"_report.html", sep="")
+      file.copy(out, htm)
+      files <- c(files, htm)
+      FileRds <- paste("iS-CellR_",str_replace_all(input$projectname,"\\s+","_"),".rds", sep = "")
+      saveRDS(scObject$val, file = FileRds)
+      #file.rename(FileRds, fname)
+      files <- c(files, FileRds)
+      print(files)
+      zip(zipfile=fname, files=files)
+      if(file.exists(paste0(fname, ".zip"))) {file.rename(paste0(fname, ".zip"), fname)}
       })
-    }
+    },
+    contentType = "application/zip"
   )
 
   ###########################################################################################
@@ -1510,6 +1898,28 @@ output$choose_CoExprGenes <- reactiveUI(function() {
           options = list(placeholder = 'Please select two genes', maxItems = 2))                          
 })
 
+output$choose_Dimreduction1 <- reactiveUI(function() {
+
+  tags$style(type='text/css', ".selectize-input { font-size: 12px; line-height: 16px;} .selectize-dropdown { font-size: 12px; line-height: 12px; }")
+        selectizeInput(inputId = "DimA", label = "Projection", multiple = FALSE, choices = c("UMAP", "FItSNE"),
+          selected = "UMAP", width = '100px', options = list(maxItems = 1))                          
+})
+
+output$choose_Dimreduction2 <- reactiveUI(function() {
+
+  tags$style(type='text/css', ".selectize-input { font-size: 12px; line-height: 16px;} .selectize-dropdown { font-size: 12px; line-height: 12px; }")
+        selectizeInput(inputId = "DimB", label = "Projection", multiple = FALSE, choices = c("UMAP", "FItSNE"),
+          selected = "UMAP", width = '100px', options = list(maxItems = 1))                          
+})
+
+output$choose_Dimreduction3 <- reactiveUI(function() {
+
+  tags$style(type='text/css', ".selectize-input { font-size: 12px; line-height: 16px;} .selectize-dropdown { font-size: 12px; line-height: 12px; }")
+        selectizeInput(inputId = "DimC", label = "Projection", multiple = FALSE, choices = c("UMAP", "FItSNE"),
+          selected = "UMAP", width = '100px', options = list(maxItems = 1))                          
+})
+
+
 observe({
  onclick('JoyplotGenes', function(){ 
   if(is.null(input$JoyplotGenes)){
@@ -1546,6 +1956,97 @@ observe({
     updateSelectizeInput(session, 'CoExprGenes', choices = c(unlist(GeneNames$val)), server=TRUE)
     }
   })
+})
+
+ observeEvent(input$switchPlot,{
+    if(input$switchPlot == "Data"){
+      shinyjs::show("DistinguishTable")
+      shinyjs::hide("distHeatMap")
+      shinyjs::hide("upRegplot")
+      shinyjs::hide("downRegplot")
+    } else if(input$switchPlot == "HeatMap"){
+      shinyjs::show("distHeatMap")
+      shinyjs::hide("DistinguishTable")
+      shinyjs::hide("upRegplot")
+      shinyjs::hide("downRegplot")
+    } else if(input$switchPlot == "Up regulated"){
+      shinyjs::show("upRegplot")
+      shinyjs::hide("DistinguishTable")
+      shinyjs::hide("distHeatMap")
+      shinyjs::hide("downRegplot")
+    }else if(input$switchPlot == "Down regulated"){
+      shinyjs::show("downRegplot")
+      shinyjs::hide("upRegplot")
+      shinyjs::hide("DistinguishTable")
+      shinyjs::hide("distHeatMap")
+    }
+  })
+
+observeEvent(input$switchPlot,{
+  req(input$switchPlot)
+  if(input$switchPlot == "HeatMap"){
+    output$heatmapPlot <- renderPlotly({
+     #if(is.null(DownloadPlot$val$DistHeatmap)){
+       isolate({
+         source("scripts/DistinguishMarkers_HeatMap.R", local = TRUE)$value
+       })
+     #}
+   })
+  } else if(input$switchPlot == "Up regulated"){
+    output$UpRegulatedPlot <- renderPlotly({
+     #if(is.null(DownloadPlot$val$Upplot)){
+       isolate({
+         source("scripts/DistinguishMarkers_upReg.R", local = TRUE)$value
+       })
+     #}
+   })
+  } else if(input$switchPlot == "Down regulated"){
+    output$DownRegulatedPlot <- renderPlotly({
+     #if(is.null(DownloadPlot$val$Downplot)){
+       isolate({
+         source("scripts/DistinguishMarkers_downReg.R", local = TRUE)$value
+       })
+     #}
+   })
+  } 
+})
+
+output$distHeatMap <- renderUI({
+   req(input$switchPlot == "HeatMap")
+   fluidRow(column(12,
+    htmlOutput("distHeatMap_msg"),
+    withSpinner(plotlyOutput("heatmapPlot", width = "100%", height = "600px"), type = 6, color="#bf00ff", size = 1)
+    ))
+})
+
+output$upRegplot <- renderUI({
+   req(input$switchPlot == "Up regulated")
+    withSpinner(plotlyOutput("UpRegulatedPlot", width = "100%", height = "600px"), type = 6, color="#bf00ff", size = 1)
+})
+
+output$downRegplot <- renderUI({
+   req(input$switchPlot == "Down regulated")
+    withSpinner(plotlyOutput("DownRegulatedPlot", width = "100%", height = "600px"), type = 6, color="#bf00ff", size = 1)
+})
+
+output$DistinguishTable <- renderUI({
+  #req(input$switchPlot == "Data")
+      fluidRow(column(12,
+        #box(title = "", solidHeader = TRUE,
+        #        collapsed = FALSE, collapsible = FALSE, width=12,
+          fluidRow(column(3,
+            selectizeInput(inputId = "MarkersCluster1", label = "Distinguish Cluster", multiple = FALSE, choices = sort(as.character(unique(scObject$val@ident)), decreasing = FALSE),
+              selected = NULL, width = "130px", options = list(placeholder = 'Please select one cluster'))),
+            column(3,
+            selectizeInput(inputId = "MarkersCluster2", label = "From these Clusters", multiple = TRUE, choices = sort(as.character(unique(scObject$val@ident)), decreasing = FALSE),
+              selected = NULL, width = "130px", options = list(placeholder = 'Please select two clusters'))),
+            column(6,
+            htmlOutput("distinguish_msg"))),
+            fluidRow(column(12,
+              actionButton("ShowMarkers", "Show markers", icon("hand-o-right"), class = "taskRUNbutton", disabled = TRUE), tags$hr(), 
+            #withSpinner(DT::dataTableOutput("DT_Findmarkers"), type = 6, color="#bf00ff", size = 1), style = "success"),
+            div(DT::dataTableOutput("DT_Findmarkers") %>% withSpinner(type = 6, color="#bf00ff", size = 1))))
+      ))
 })
 
 ################# Dropdown Gene list ###################### 
@@ -1652,9 +2153,13 @@ observeEvent(input$seuratRUN,{
                 #                tags$div("Running Seurat...",id="loadmessage"),
                 #                img(src="spinner.gif")),
                 tabPanel("PCA 2D", status = "info",
-                         actionButton("PCA2Dfull", "Full screen", icon("desktop"), class = "taskDFbutton", disabled = TRUE), 
-                         downloadButton("downPCA2D", label = "Save plot", class = "taskDFbutton", disabled = TRUE), 
-                         hidden(checkboxInput('PrintLabelPCA', 'Label clusters', value = FALSE)), tags$hr(),
+                         fluidRow(column(12,
+                          fluidRow(column(10,useShinyjs(),
+                          hidden(switchButton(inputId = "SwitchLabelPCA", label = "Cluster label", value = TRUE, col = "GB", type = "OO")))),
+                          fluidRow(column(10,
+                            actionButton("PCA2Dfull", "Full screen", icon("desktop"), class = "taskDFbutton", disabled = TRUE), 
+                            downloadButton("downPCA2D", label = "Save plot", class = "taskDFbutton", disabled = TRUE)))
+                          )), tags$hr(),
                          withSpinner(plotlyOutput("seuratPCAplot", width = "100%", height = "600px"), type = 6, color="#bf00ff", size = 1),
                          tags$head(tags$style(".modal-lg{width: 95%;height: 95%;}")),
                          tags$head(tags$style(".modal{height:95%;color:purple;}")),
@@ -1699,9 +2204,7 @@ observeEvent(input$seuratRUN,{
                                          numericInput("PCAHeatuse1", "PCA to plot:",
                                                       min = 1, max = 12, value = 1, step = 1, width = "120px")),
                                   column(2,
-                                         numericInput("PCAHeatCells", "Number of Cells", width = "150px", min = 1, value = 500, step = 10)),
-                                  column(2,
-                                         numericInput("PCAHeatfont", "Label size", width = "150px", min = 0, value = 10, step = 1))),
+                                         numericInput("PCAHeatCells", "Number of Cells", width = "150px", min = 1, value = 500, step = 10))),
                                          useShinyjs(),
                                          actionButton("updatePCAHeatmap", "Plot it", icon("hand-o-right"),
                                                       class = "taskRUNbutton"), 
@@ -1723,16 +2226,23 @@ observeEvent(input$seuratRUN,{
  # observeEvent(input$seuratRUN,{
       output[["seurattSNE"]] <- renderUI({
         listSteps <- hideBoxes()
-        if("Non-linear dimensional reduction (tSNE)" %in% listSteps){
-          box(title = "iS-CellR results: non-linear dimensional reduction (tSNE)", status = "warning", solidHeader = FALSE,
+        if("Non-linear dimensional reduction (UMAP/tSNE)" %in% listSteps){
+          box(title = "iS-CellR results: non-linear dimensional reduction (UMAP/tSNE)", status = "warning", solidHeader = FALSE,
               collapsed = TRUE, collapsible = TRUE, width=12,
               tabBox(
                 # The id lets us use input$tabset1 on the server to find the current tab
                 id = "seurattSNE", width=12, 
-                tabPanel("tSNE 2D", status = "warning", 
-                         actionButton("tSNE2Dfull", "Full screen", icon("desktop"), class = "taskDFbutton", disabled = TRUE), 
-                         downloadButton("downtSNE2D", label = "Save plot", class = "taskDFbutton", disabled = TRUE), 
-                         hidden(checkboxInput('PrintLabeltSNE', 'Label clusters', value = FALSE)), tags$hr(),
+                tabPanel("tSNE 2D", status = "warning",
+                          fluidRow(column(6,
+                            fluidRow(
+                            column(3,useShinyjs(),hidden(uiOutput("choose_Dimreduction1"))),
+                            #useShinyjs(),
+                            column(3,useShinyjs(),hidden(switchButton(inputId = "SwitchLabeltSNE", label = "Cluster label", value = TRUE, col = "GB", type = "OO")))),
+                            fluidRow(column(12,
+                              actionButton("tSNE2Dfull", "Full screen", icon("desktop"), class = "taskDFbutton", disabled = TRUE), 
+                              downloadButton("downtSNE2D", label = "Save plot", class = "taskDFbutton", disabled = TRUE))))),                            
+                            #checkboxInput('PrintLabeltSNE', 'Label clusters', value = FALSE),
+                            tags$hr(),
                          withSpinner(plotlyOutput("seurattSNEplot", width = "100%", height = "600px"), type = 6, color="#bf00ff", size = 1),
                          tags$head(tags$style(".modal-lg{width: 95%;height: 95%;}")),
                          tags$head(tags$style(".modal{height:95%;color:purple;}")),
@@ -1840,11 +2350,21 @@ observeEvent(input$seuratRUN,{
                          actionButton("updateFeatplot", "Plot it", icon("hand-o-right"),
                                       class = "taskRUNbutton", disabled = TRUE),  
                          actionButton("Featureplotfull", "Full screen", class = "taskDFbutton", disabled = TRUE),
-                         downloadButton("downFeatureplot", label = "Save plot", class = "taskDFbutton", disabled = TRUE),
-                         hidden(checkboxInput('PrintLabel_Featplot', 'Label clusters', value = FALSE))), br(),
+                         downloadButton("downFeatureplot", label = "Save plot", class = "taskDFbutton", disabled = TRUE)),
+                         #useShinyjs(),hidden(uiOutput("choose_Dimreduction2")),useShinyjs(),
+                         #hidden(switchButton(inputId = "SwitchLabelFeatPlot", label = "Cluster label", value = TRUE, col = "GB", type = "OO"),
+                         #numericInput("ExprCutoffFeat", "Expression threshold:",
+                         #           min = 0, max = 50, value = 0, step = 0.5, width = "30%"))), #br(),
                          column(6, #style='height:180px',
                                 valueBoxOutput("GeneNotFound_Feat", width = NULL))
-                         ), tags$hr(),
+                         ),
+                          fluidRow(column(2, #style='height:180px',
+                          useShinyjs(),hidden(uiOutput("choose_Dimreduction2"))),column(2,useShinyjs(),
+                          hidden(switchButton(inputId = "SwitchLabelFeatPlot", label = "Cluster label", value = TRUE, col = "GB", type = "OO"))),
+                          column(8,useShinyjs(),hidden(numericInput("ExprCutoffFeat", "Expression threshold:",
+                                    min = 0, max = 50, value = 0, step = 0.5, width = "20%"))) #column(5,htmlOutput("spacer"))
+                          ),
+                         tags$hr(),
                          withSpinner(plotlyOutput("seuratFeatureplot", width = "100%", height = "500px"), type = 6, color="#bf00ff", size = 1),
                          tags$head(tags$style(".modal-lg{width: 95%;height: 95%;}")),
                          tags$head(tags$style(".modal{height:95%;color:purple;}")),
@@ -1855,8 +2375,13 @@ observeEvent(input$seuratRUN,{
                 tabPanel("Heatmap", status = "primary", 
                          fluidRow(column(6, #style='height:180px',
                             #textAreaInput("HeatmapGenes", paste0("Genes of interest e.g:", paste(sample(GeneNames,3), collapse = ',')), width = "500px"), 
+                         useShinyjs(),
                          uiOutput("choose_HeatmapGenes"),
-                            useShinyjs(),
+                         fluidRow(column(4, useShinyjs(), #htmlOutput("Heatheader"), switchInput("SwitchHeatmap", label = NULL, value = FALSE, onLabel = "ON", offLabel = "OFF", onStatus = "success", offStatus = "default", size = "small", disabled = FALSE)),
+                          switchButton(inputId = "SwitchHeatmap", label = "Use top markers", value = FALSE, col = "GB", type = "YN")),
+                          column(6, useShinyjs(), hidden(noUiSliderInput(inputId = "TopDiffHeatmap", label = NULL, step = 1, min = 1, 
+                                    max = 500, value = 10, color = "#FF0000", tooltips = TRUE, behaviour = "tap"))) #column(5,htmlOutput("spacer"))
+                          ),
                          actionButton("updateHeatmap", "Plot it", icon("hand-o-right"),
                                       class = "taskRUNbutton", disabled = TRUE),
                          actionButton("Heatmapfull", "Full screen", icon("desktop"), class = "taskDFbutton", disabled = TRUE),
@@ -1864,13 +2389,39 @@ observeEvent(input$seuratRUN,{
                          column(6, #style='height:180px',
                                 valueBoxOutput("GeneNotFound_Heat", width = NULL))
                          ), tags$hr(), 
-                         withSpinner(plotOutput("seuratHeatmap", width = "100%", height = "500px"), type = 6, color="#bf00ff", size = 1),
+                         withSpinner(plotlyOutput("seuratHeatmap", width = "100%", height = "500px"), type = 6, color="#bf00ff", size = 1),
                          tags$head(tags$style(".modal-lg{width: 95%;height: 95%;}")),
                          tags$head(tags$style(".modal{height:95%;color:purple;}")),
                          tags$head(tags$style(".modal-dialog{width:95%}")),
                          tags$head(tags$style(".modal-body{min-height:95%}")),
                          tags$head(tags$style(".modal-header {background-color: #0099ff; color: white; font-weight: bold !important; font-size: 38px !important; }")),
-                        bsModal("HeatmapZOOM", "Heatmap", "Heatmapfull", withSpinner(plotOutput("seuratHeatmapZoom", width = "100%", height = "700px"), type = 6, color="#bf00ff", size = 1)))
+                        bsModal("HeatmapZOOM", "Heatmap", "Heatmapfull", withSpinner(plotlyOutput("seuratHeatmapZoom", width = "100%", height = "700px"), type = 6, color="#bf00ff", size = 1))),
+                tabPanel("Markers define clusters", status = "primary", 
+                         fluidRow(column(12,
+                          bsCollapse(id = "markersDT", #open = "Find all markers of specified Cluster",
+                                bsCollapsePanel("Distinguish markers across Clusters",
+                                  fluidRow(column(12,
+                                  radioGroupButtons(
+                                                  inputId = "switchPlot", label = "", 
+                                                  choices = c("Data", "HeatMap", "Up regulated", "Down regulated"), 
+                                                  justified = TRUE, status = "warning",
+                                                  checkIcon = list(yes = icon("ok", lib = "glyphicon"), no = icon("remove", lib = "glyphicon"))), tags$hr(),
+                                  uiOutput("DistinguishTable"),
+                                  uiOutput("distHeatMap"),
+                                  uiOutput("upRegplot"),
+                                  uiOutput("downRegplot"))), style = "success"),
+                                bsCollapsePanel("Find all markers of specified Cluster",
+                                  #uiOutput("choose_ClusterSel"), tags$hr(),
+                                  fluidRow(column(6,
+                                    selectizeInput(inputId = "ClusterSel", label = "Find markers of Cluster", multiple = FALSE, choices = sort(as.character(unique(scObject$val@ident)), decreasing = FALSE),
+                                                  selected = NULL, width = "150px", options = list(placeholder = 'Please select one cluster')))), tags$hr(),
+                                  div(DT::dataTableOutput("DT_ClusterSel") %>% withSpinner(type = 6, color="#bf00ff", size = 1)), style = "warning"),
+                                bsCollapsePanel("Find all markers for every Cluster",
+                                  htmlOutput("allmarkers_show"),
+                                  numericInput("Topmarkers", "Top markers for every cluster", min = 1, max = 200, value = 10, step = 5, width = "25%"), tags$hr(),
+                                  div(DT::dataTableOutput("DT_Allmarkers") %>% withSpinner(type = 6, color="#bf00ff", size = 1)), style = "danger")
+                          )))
+                         )
               ))
         }
       })
@@ -1886,23 +2437,25 @@ observeEvent(input$seuratRUN,{
                 # The id lets us use input$tabset1 on the server to find the current tab
                 id = "seuratMakers", width=12,
                 tabPanel("CoExpress",  color="purple", 
-                         fluidRow(column(5, #style='height:180px',
+                         fluidRow(column(5,
+                            fluidRow(column(12, #style='height:180px',
                             #textAreaInput("CoExprGenes", paste0("Genes of interest (name two genes) e.g:", paste(sample(GeneNames,2), collapse = ',')), width = "250px"),
                          uiOutput("choose_CoExprGenes"),
                          useShinyjs(),
                          actionButton("updateCoExprplot", "Plot it", icon("hand-o-right"),
                                       class = "taskRUNbutton", disabled = TRUE),
                          actionButton("CoExprplotfull", "Full screen", icon("desktop"), class = "taskDFbutton", disabled = TRUE),
-                         downloadButton("downCoExprplot", label = "Save plot", class = "taskDFbutton", disabled = TRUE),
-                         hidden(checkboxInput('PrintLabel', 'Label clusters', value = FALSE))), #br(), br(),
+                         downloadButton("downCoExprplot", label = "Save plot", class = "taskDFbutton", disabled = TRUE))),br(),
+                         fluidRow(column(3,useShinyjs(),hidden(uiOutput("choose_Dimreduction3"))),
+                         column(9,useShinyjs(),hidden(switchButton(inputId = "SwitchLabelCoExpr", label = "Cluster label", value = TRUE, col = "GB", type = "OO"))))), 
                          #hidden(valueBoxOutput("GeneNotFound_CoExpr", width = NULL))),
                          #column(1,
                          # htmlOutput("spacer")
                          # ),
                          column(6, #style='height:180px',
                            numericInput("ExprCutoff", "Expression threshold:",
-                                      min = 0.1, max = 20, value = 0.5, step = 0.5, width = "30%"),
-                         htmlOutput("header"), tableOutput("Gene12ExprTable"))), 
+                                      min = 0, max = 50, value = 0, step = 0.5, width = "30%"),
+                         htmlOutput("header"), tableOutput("Gene12ExprTable"))), br(),
                          fluidRow(column(12,
                           hidden(valueBoxOutput("GeneNotFound_CoExpr", width = NULL)))), tags$hr(),
                          withSpinner(plotlyOutput("seuratCoExprplot", width = "100%", height = "600px"), type = 6, color="#bf00ff", size = 1),
@@ -1913,24 +2466,29 @@ observeEvent(input$seuratRUN,{
                          tags$head(tags$style(".modal-header {background-color: #0099ff; color: white; font-weight: bold !important; font-size: 38px !important; }")),
                         bsModal("CoExprplotZOOM", "CoExpress genes plot", "CoExprplotfull", withSpinner(plotlyOutput("seuratCoExprplotZoom", width = "100%", height = "700px"), type = 6, color="#bf00ff", size = 1))),
                 tabPanel("Inter-sample heterogeneity",  color="fuchsia",
-                         checkboxInput('geneheader', 'Header', TRUE),
-                         radioButtons('genesep', 'Separator', 
-                                      c(Comma=',',
+                         prettyCheckbox(inputId = 'geneheader', label = 'Header', icon = icon("check"), animation = "pulse", status = "info", value=TRUE),
+                         prettyRadioButtons(inputId = 'genesep', label = 'Separator', 
+                                      choices = c(Comma=',',
                                         Semicolon=';',
                                         Tab='\t'),
-                                      '\t',inline=T),
-                         fileInput('geneList', '',
-                                   accept = c(
-                                     'text/csv',
-                                     'text/comma-separated-values',
-                                     'text/tab-separated-values',
-                                     'text/plain',
-                                     '.csv',
-                                     '.tsv',
-                                     multiple = FALSE
-                                   )
-                         ),
-                         useShinyjs(),
+                                      thick = TRUE,icon = icon("check"),
+                                      animation = "pulse", status = "info",
+                                      selected = '\t', inline=T),
+                         switchButton(inputId = "SwitchUpload2", label = "Local file", value = TRUE, col = "GB", type = "YN"),
+                          useShinyjs(),
+                           hidden(fileInput('geneList', '',
+                                      accept = c(
+                                      'text/csv',
+                                      'text/comma-separated-values',
+                                      'text/tab-separated-values',
+                                      'text/plain',
+                                      '.csv',
+                                      '.tsv'
+                                      ),
+                                      multiple = FALSE
+                         )),
+                         hidden(shinyFilesButton('sfile_interHet', label = 'Browse...', title = 'Load file from sever', multiple = TRUE, icon=icon("upload"))),
+                         useShinyjs(), tags$br(),
                          actionButton("updateInterHetplot", "Plot it", icon("hand-o-right"),
                                       class = "taskRUNbutton", disabled = TRUE), 
                          downloadButton("downInterHet", label = "Save plot", class = "taskDFbutton", disabled = TRUE), tags$hr(),
