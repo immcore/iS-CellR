@@ -14,20 +14,6 @@ options(shiny.maxRequestSize = 6000*1024^2)
 source("helpers.R") # Load all the code needed to show feedback on a button click
 selectSteps <- list("Quality control and cell filtering", "Gene variability across single cells", "Linear dimensional reduction (PCA)", "Non-linear dimensional reduction (UMAP/tSNE)", "Differentially expressed genes", "Discriminating marker genes")
 
-generateReport <- function() {
-  out.markdown <- ''
-  withProgress(message = 'Generating Report',
-               value = 0, {
-                 out.markdown <- rmarkdown::render(
-                   input = "Tirosh2016_seurat.Rmd",
-                   output_format = "html_document")
-                 
-                 setProgress(1)
-               })
-  
-  read_file(out.markdown)
-}
-
 server <- function(input, output, session) {
 
   # Define variables for each user session
