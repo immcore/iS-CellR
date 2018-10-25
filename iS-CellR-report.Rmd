@@ -50,11 +50,11 @@ knitr::kable(dfSummary, format = "html", booktabs = FALSE, digits=2) %>%
 
 ```{r QCinfo, fig.align = "center", fig.width=9, fig.height=6}
 
-#if(!is.null(QCfilter$val$nGenes2) && !is.null(QCfilter$val$nCells) && !is.null(QCfilter$val$Expr2)){
-#    QCfilter$val$nGenes2 <- 3
-#    QCfilter$val$nCells <- 3
-#    QCfilter$val$Expr2 <- 0
-#}
+if(is.null(QCfilter$val$nGenes2) && is.null(QCfilter$val$nCells) && is.null(QCfilter$val$Expr2)){
+    QCfilter$val$nGenes2 <- 3
+    QCfilter$val$nCells <- 3
+    QCfilter$val$Expr2 <- 0
+}
 
 qcGenes <- data.table("Minimum genes: ", QCfilter$val$nGenes2)
 qcCells <- data.table("Minimum cells: ", QCfilter$val$nCells)
