@@ -19,7 +19,7 @@ To get started, please load in a CSV/TSV separated values file. The file should 
 
 1. Columns are Cells
 2. Rows are Genes
-3. __Optional__: Cell names or Cell type in Column header followed by Cell id. eg. Tcell_TC1_fcount_1.
+3. Optional: Cell names or Cell type in Column header followed by Cell id. eg. Tcell_TC1_fcount_1.
 
 __NOTE:__ An example CSV file can be accessed <a href='data/Maligant50.csv', target='blank', download = 'Maligant50.csv'><strong>here</strong></a> (right click save as).
 
