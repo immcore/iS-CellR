@@ -2,6 +2,7 @@ rm(list = ls())
 #.rs.restartR() # Restart R session
 # check if pkgs are installed already, if not, install automatically:
 source("installPkgsR.R")
+source("SwitchButton.R")
 
 # The max limit is 10GB when the app is run locally and 5MB when run from the server.
 if(Sys.getenv('SHINY_PORT') == "") options(shiny.maxRequestSize=10000*1024^2)
@@ -26,12 +27,17 @@ mode <- reactiveValues(n=1,m=1,l=1)
 seuratObject <- reactiveValues(val=NULL)
 countFileQC <- reactiveValues(val=NULL)
 tSNEmatrix <- reactiveValues(val=NULL)
-tSNEClusters <- reactiveValues(val=NULL)
+dimPkg <- reactiveValues(val="UMAP")
 tSNE3D <- reactiveValues(val=NULL)
-tSNEObj <- reactiveValues(val=NULL)
+scObject <- reactiveValues(val=NULL)
 ClusterLabInfo <- reactiveValues(val=NULL)
 dfcluster.ids <- reactiveValues(val=NULL)
-
+countRds <- reactiveValues(val=NULL)
+scObjAllmarkers <- reactiveValues(val=NULL)
+Allmarkers <- reactiveValues(val=NULL)
+DistinguishMarkers <- reactiveValues(val=NULL)
+ClusterMarkers <- reactiveValues(val=NULL)
+Clusters <- reactiveValues(val=NULL)
 
 options(shiny.maxRequestSize = 6000*1024^2)
 
@@ -74,7 +80,7 @@ fixUploadedFilesNames <- function(x) {
 }
 
 # Seurat steps
-selectSteps <- list("Quality control and cell filtering", "Gene variability across single cells", "Linear dimensional reduction (PCA)", "Non-linear dimensional reduction (tSNE)", "Differentially expressed genes", "Discriminating marker genes")
+selectSteps <- list("Quality control and cell filtering", "Gene variability across single cells", "Linear dimensional reduction (PCA)", "Non-linear dimensional reduction (UMAP/tSNE)", "Differentially expressed genes", "Discriminating marker genes")
 
 # Packages 
 pkgs <- c("threejs_0.3.1","apputils_0.5.1","Seurat_2.2.1","rmarkdown_1.9",

@@ -3,6 +3,11 @@
   font-weight: bold;
   font-size: 24px;
 }
+
+.skin-purple .main-header .navbar {
+  background-color: #525252;
+}
+
 .sidebar-collapse .left-side, .sidebar-collapse .main-sidebar{   
   transform: translate(0,0);
     width: 40px;
@@ -23,6 +28,26 @@
 {
  transition: transform 1s, width 1s;
 }
+
+/*a:link {
+    color: #0e5eeb;
+}
+
+/* visited link */
+/*a:visited {
+    color: red;
+}
+
+/* mouse over link */
+/*a:hover {
+    color: #e49a17;
+}
+
+/* selected link */
+/*a:active {
+    color: #0e5eeb;
+}
+*/
 
 h2 
 {
@@ -510,7 +535,142 @@ element.style {
   opacity: 0.6;
   pointer-events: none;
 }
-
+.citebutton {
+  background-color: #f2fff0;
+  text-decoration: none;
+  text-transform: initial;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 14px;
+  font-weight: normal;
+  padding: 2px;
+  display: inline-block;
+  position: relative;
+  text-align: left;
+  color: #027d00;
+  border: 1px solid #027d00;
+  border-radius: 5px;
+  white-space: normal;
+  line-height: 3em;
+  width: 100%;
+  padding-left: 1em;
+  padding-right: 1em;
+  box-shadow: 0 0 0 0 transparent;
+  -webkit-transition: all 0.2s ease-in;
+  -moz-transition: all 0.2s ease-in;
+  transition: all 0.2s ease-in;
+}
+.citebutton:hover {
+  color: white;
+  white-space: normal;
+  box-shadow: 0 0 40px 0 rgba(89, 0, 179, 0.5);
+  background-color: #5900b3;
+  -webkit-transition: all 1.0s ease-out;
+  -moz-transition: all 1.0s ease-out;
+  transition: all 1.0s ease-out;
+}
+.citebutton:hover:before {
+  background-color: #f2fff0;
+  color: white;
+  -webkit-animation: shine 1.0s 0s linear;
+  -moz-animation: shine 1.0s 0s linear;
+  animation: shine 1.0s 0s linear;
+  white-space: normal;
+}
+.citebutton:active {
+  background-color: #f2fff0;
+  color: white;
+  box-shadow: 0 0 0 0 transparent;
+  -webkit-transition: box-shadow 0.2s ease-in;
+  -moz-transition: box-shadow 0.2s ease-in;
+  transition: box-shadow 0.2s ease-in;
+  white-space: normal;
+}
+.citebutton:before {
+  content: '';
+  display: block;
+  width: 0px;
+  height: 86%;
+  position: absolute;
+  top: 7%;
+  left: 0%;
+  opacity: 0;
+  background: #f2fff0;
+  box-shadow: 0 0 15px 3px white;
+  -webkit-transform: skewX(-20deg);
+  -moz-transform: skewX(-20deg);
+  -ms-transform: skewX(-20deg);
+  -o-transform: skewX(-20deg);
+  transform: skewX(-20deg);
+}
+.taskDTbutton {
+  background-color: #8c8c8c;
+  text-decoration: none;
+  text-transform: initial;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 14px;
+  padding: 2px;
+  display: inline-block;
+  position: relative;
+  text-align: center;
+  margin-top:25px;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: 5px;
+  line-height: 2em;
+  padding-left: 1em;
+  padding-right: 1em;
+  box-shadow: 0 0 0 0 transparent;
+  -webkit-transition: all 0.2s ease-in;
+  -moz-transition: all 0.2s ease-in;
+  transition: all 0.2s ease-in;
+  text-decoration: none;
+  text-transform: initial;
+  box-shadow: 0 0 0 0 transparent;
+  -webkit-transition: all 0.2s ease-in;
+  -moz-transition: all 0.2s ease-in;
+  transition: all 0.2s ease-in;
+}
+.taskDTbutton:hover {
+  color: white;
+  box-shadow: 0 0 30px 0 rgba(89, 0, 179, 0.5);
+  background-color: #5900b3;
+  -webkit-transition: all 0.2s ease-out;
+  -moz-transition: all 0.2s ease-out;
+  transition: all 0.2s ease-out;
+}
+.taskDTbutton:hover:before {
+  -webkit-animation: shine 0.5s 0s linear;
+  -moz-animation: shine 0.5s 0s linear;
+  animation: shine 0.5s 0s linear;
+}
+.taskDTbutton:active {
+  background-color: #5900b3;
+  box-shadow: 0 0 0 0 transparent;
+  -webkit-transition: box-shadow 0.2s ease-in;
+  -moz-transition: box-shadow 0.2s ease-in;
+  transition: box-shadow 0.2s ease-in;
+}
+.taskDTbutton:before {
+  content: '';
+  display: block;
+  width: 0px;
+  height: 86%;
+  position: absolute;
+  top: 7%;
+  left: 0%;
+  opacity: 0;
+  background-color: #ff9933;
+  background: white;
+  box-shadow: 0 0 15px 3px white;
+  -webkit-transform: skewX(-20deg);
+  -moz-transform: skewX(-20deg);
+  -ms-transform: skewX(-20deg);
+  -o-transform: skewX(-20deg);
+  transform: skewX(-20deg);
+}
+.taskDTbutton:disabled {
+  opacity: 0.6;
+}
 @-webkit-keyframes shine {
   from {
     opacity: 0;
@@ -551,3 +711,111 @@ element.style {
   }
 }
 
+/* ON-OFF switch button */
+/* Sébastien Rochette */
+/* http://sebrock.fr/en/ */
+/* CSS modified from : https://proto.io/freebies/onoff/ */
+/* All switch */
+.onoffswitch {
+  width: 78px;
+  position: relative;
+  -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
+  font-family:'Helvetica', sans-serif; 
+}
+.onoffswitch-checkbox {
+  display: none;
+}
+.onoffswitch-label {
+  display: block; overflow: hidden; cursor: pointer;
+  border: 2px solid #999999; border-radius: 30px;
+}
+.onoffswitch-inner {
+  display: block; width: 200%; margin-left: -100%;
+  transition: margin 0.3s ease-in 0s;
+}
+.onoffswitch-inner:before, .onoffswitch-inner:after {
+  display: block; float: left; width: 50%; height: 25px; padding: 0; line-height: 25px;
+  font-size: 17px; color: white; font-family: Trebuchet, Arial, sans-serif; font-weight: bold;
+  box-sizing: border-box;
+}
+
+/* All switch - default div class */
+.onoffswitch-inner:before {
+  content: " ";
+  padding-left: 10px;
+}
+
+.onoffswitch-inner:after {
+  content: " ";
+  padding-right: 10px;
+  text-align: right;
+}
+
+.onoffswitch-switch {
+  display: block; width: 18px; height: 18px; margin: 5.5px;
+  position: absolute; top: 0; bottom: 0;
+  border-radius: 20px;
+  right: 48px;
+  transition: all 0.3s ease-in 0s; 
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+  right: 0px;
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+  margin-left: 0;
+}
+
+/* Color change */
+/* RedGreen */
+.RedGreen .onoffswitch-inner:before {
+  background-color: #008A0C; color: #FFFFFF;
+}
+.RedGreen .onoffswitch-inner:after {
+  background-color: #D10000; color: #FFFFFF;
+}
+
+.RedGreen .onoffswitch-switch {
+  background: #FFFFFF;
+  border: 0px solid #FFFFFF;
+}
+
+/* GreyBlue */ 
+.GreyBlue .onoffswitch-inner:before {
+  background-color: #FFFFFF; color: #6f41ca;
+}
+.GreyBlue .onoffswitch-inner:after {
+  background-color: #FFFFFF; color: #AAA;
+}
+.GreyBlue .onoffswitch-switch {
+  background: #AAA;
+  border: 0px solid #AAA;
+}
+.GreyBlue .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+  background-color: #6f41ca;
+}
+
+/* Text change */
+/* On / Off */
+.OnOff .onoffswitch-inner:before {
+  content: "ON";
+}
+
+.OnOff .onoffswitch-inner:after {
+  content: "OFF";
+}
+/* Yes / No */
+.YesNo .onoffswitch-inner:before {
+  content: "YES";
+}
+
+.YesNo .onoffswitch-inner:after {
+  content: "NO";
+}
+/* True / False */
+.TrueFalse .onoffswitch-inner:before {
+  content: "TRUE";
+}
+
+.TrueFalse .onoffswitch-inner:after {
+  content: "FALSE";
+}
