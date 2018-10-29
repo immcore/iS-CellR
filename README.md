@@ -82,6 +82,10 @@ To get started, please load in a CSV/TSV separated values file. The file should 
 2. Rows are Genes
 3. __Optional__: Cell names or Cell type in Column header followed by Cell id. eg. Tcell_TC1_fcount_1.
 
+iS-CellR v1.1 now supports following inputs:
+- 10X genomics Cellranger output
+- Precomputed Rds files
+
 ## Demo data files:
 
 There is one matrix file for Malignant dataset from Tirosh et al., 2016 (Main file for the analysis) and genes file (For STEP: Discriminating marker genes). 
