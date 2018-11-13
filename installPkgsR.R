@@ -12,8 +12,8 @@ instpkg <- function(pkg,repo){
 
 
 # CRAN R packages
-CRANpkgs <- c("shinyBS", "shinydashboard", "shinydashboardPlus", "shinyFiles", "shinyWidgets", "htmltools", "shinycssloaders", "shinyjs", "DT", "devtools", "dplyr", "knitr", "kableExtra", "knitcitations", "nycflights13", 
-	"Matrix", "plotly", "pryr", "tools", "igraph", "heatmaply", "data.table", "ggthemes", "evaluate", "psych", "ggjoy", "formattable", "gridExtra", "cowplot", "ggrepel", "data.table", "stringr", "rmarkdown")
+CRANpkgs <- c("shinyBS", "shinydashboard", "shinydashboardPlus", "shinyFiles", "shinyWidgets", "shinyalert", "htmltools", "shinycssloaders", "shinyjs", "DT", "devtools", "dplyr", "knitr", "kableExtra", "knitcitations", "nycflights13", 
+	"Matrix", "plotly", "reticulate", "pryr", "tools", "igraph", "heatmaply", "data.table", "ggthemes", "evaluate", "psych", "ggjoy", "formattable", "gridExtra", "cowplot", "ggrepel", "data.table", "stringr", "rmarkdown")
 instpkg(CRANpkgs, "CRAN")
 
 # check if Dev Shiny installed
@@ -72,3 +72,32 @@ if (length(new.pkg)) {
     biocLite("MAST")
 }
 sapply(pkg, require, character.only = TRUE)
+
+# check if UMAP installed
+pkg <- "umap"
+#if (!import(pkg)) {
+    py_install(c("numpy", "scipy", "scikit-learn", "numba", "umap-learn"))
+#}
+import(pkg)
+
+# check if FI-tSNE installed
+FItSNEpath <- reactiveValues(val=NULL)
+#FItSNEpath$val <- Sys.which("fast_tsne")[[1]]
+FItSNEbin <- "FIt-SNE-master/bin"
+if(!file.exists(paste0(FItSNEbin,"/fast_tsne"))){
+    #system("git clone https://github.com/FFTW/fftw3.git")
+    #system("sh fftw3/bootstrap.sh")
+    #system("fftw3/configure --prefix=fftw3")
+    #system("make")
+    #system("make install")
+    #system("wget https://github.com/KlugerLab/FIt-SNE/archive/v1.0.0.zip")
+    system("unzip FIt-SNE-master.zip")
+    #system("rm -r v1.0.0.zip")
+    #system("git clone https://github.com/KlugerLab/FIt-SNE.git")
+    system("g++ -std=c++11 -O3 FIt-SNE-master/src/sptree.cpp FIt-SNE-master/src/tsne.cpp FIt-SNE-master/src/nbodyfft.cpp -o FIt-SNE-master/bin/fast_tsne -pthread -lfftw3 -lm")
+    FItSNEpath$val <- as.character("FIt-SNE-master/bin")
+} else {
+    FItSNEpath$val <- as.character("FIt-SNE-master/bin")
+}
+
+
