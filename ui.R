@@ -6,15 +6,6 @@
 # 
 #    http://shiny.rstudio.com/
 #
-rm(list = ls())
-if(Sys.getenv('SHINY_PORT') == "") options(shiny.maxRequestSize=10000*1024^2)
-options(shiny.maxRequestSize = 6000*1024^2)
-#.rs.restartR() # Restart R session
-# check if pkgs are installed already, if not, install automatically:
-source("installPkgsR.R")
-source("SwitchButton.R")
-source("helpers.R") # Load all the code needed to show feedback on a button click
-selectSteps <- list("Quality control and cell filtering", "Gene variability across single cells", "Linear dimensional reduction (PCA)", "Non-linear dimensional reduction (UMAP/tSNE)", "Differentially expressed genes", "Discriminating marker genes")
 
 header <- dashboardHeader(title = "iS-CellR",
                           tags$li(class = "dropdown",
@@ -27,7 +18,7 @@ header <- dashboardHeader(title = "iS-CellR",
                           #          class = "dropdown"))
                           ))
 
-sidebar <- dashboardSidebar( uiOutput("userName"),
+sidebar <- dashboardSidebar(useShinyalert(), uiOutput("userName"),
                              tags$style(type="text/css",
                                         ".shiny-output-error { visibility: hidden; }",
                                         ".shiny-output-error:before { visibility: hidden; }"
