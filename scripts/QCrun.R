@@ -37,7 +37,7 @@ scObject$val <- RunPCA(object = scObject$val, pc.genes = hv.genes, pcs.compute =
 scObject$val <- FindClusters(object = scObject$val, reduction.type = "pca", dims.use = 1:75, resolution = 0.9, 
     save.SNN = TRUE, n.start = 10, nn.eps = 0.5, print.output = TRUE)
 
-scObject$val <- RunTSNE(object = scObject$val, reduction.use = "pca", dims.use = 1:75, tsne.method = "FIt-SNE", nthreads = 4, reduction.name = "FItSNE", reduction.key = "FItSNE_", fast_tsne_path = "/bin/fast_tsne", max_iter = 2000)
+scObject$val <- RunTSNE(object = scObject$val, reduction.use = "pca", dims.use = 1:75, tsne.method = "FIt-SNE", nthreads = 4, reduction.name = "FItSNE", reduction.key = "FItSNE_", fast_tsne_path = "FIt-SNE-master/bin/fast_tsne", max_iter = 2000)
 scObject$val <- RunUMAP(object = scObject$val, reduction.use = "pca", dims.use = 1:75, min_dist = 0.75)
 
 
