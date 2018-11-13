@@ -1,4 +1,4 @@
-# 
+#  
 # This is the server logic of a Shiny web application. You can run the 
 # application by clicking 'Run App' above.
 #
@@ -6,13 +6,6 @@
 # 
 #    http://shiny.rstudio.com/
 #
-rm(list = ls())
-#.rs.restartR() # Restart R session
-# check if pkgs are installed already, if not, install automatically:
-source("installPkgsR.R")
-options(shiny.maxRequestSize = 6000*1024^2)
-source("helpers.R") # Load all the code needed to show feedback on a button click
-selectSteps <- list("Quality control and cell filtering", "Gene variability across single cells", "Linear dimensional reduction (PCA)", "Non-linear dimensional reduction (UMAP/tSNE)", "Differentially expressed genes", "Discriminating marker genes")
 
 server <- function(input, output, session) {
 
@@ -104,6 +97,17 @@ server <- function(input, output, session) {
       )
     })
 
+#  observeEvent(input$ok,{
+#    #req(input$ok)
+#    if(is.null(FItSNEpath$val)){
+#       useShinyalert()
+#       shinyalert('Please provide path of FItSNE', type='input', callbackR = mycallback)
+#      }
+#      })
+#  mycallback <- function(value) {
+#    FItSNEpath$val <- as.character(value)
+#  }
+
   #observeEvent(c(input$file1,input$sep,input$quote,input$header),{
    observe({
     if (!is.null(input$file1)) {
@@ -157,6 +161,7 @@ count_data <- reactive({
                               sep = input$sep, quote = input$quote, stringsAsFactors=FALSE)
               countMatrix <- as.matrix(countMatrix, rownames=1)
             }
+          rownames(countMatrix) = make.unique(rownames(countMatrix), sep = "_")
           countFile$val <- countMatrix
           geneID <- rownames(countMatrix)
           GeneNames$val <- geneID
@@ -231,6 +236,8 @@ count_data <- reactive({
   })
 
  # observeEvent(input$sfile,{
+ # observe({
+ #   if(!is.null(countFile$val)){
 
   output$dt <- DT::renderDataTable({
        #DT::datatable(count_data(), escape=FALSE, selection = 'none', options = list(scrollX = TRUE)) %>% formatStyle(0, cursor = 'pointer')
