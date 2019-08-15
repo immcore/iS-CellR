@@ -129,7 +129,7 @@ server <- function(input, output, session) {
                 #fluidRow(tags$br())
     })
 
-shinyFileChoose(input, 'sfile', session = session, roots = c(root='.'), filetypes=c('', 'txt','csv','tsv','rds','mtx'))
+shinyFileChoose(input, 'sfile', session = session, roots = c(root='.'), filetypes=c('', 'txt','csv','tsv','rds','mtx','h5'))
 
 shinyFileChoose(input, 'sfile_interHet', session = session, roots = c(root='.'), filetypes=c('', 'txt','csv','tsv'))
 
@@ -147,11 +147,15 @@ count_data <- reactive({
                         content = "Please upload file...", style="danger", dismiss = FALSE, append = FALSE)
       } else {
             if(input$load10x){
-              from <- inFile$datapath
-              to <- file.path(dirname(from), basename(inFile$name))
-              file.rename(from, to)
-              path10x <- sub("/[^/]+$", "", inFile$datapath)
-              count10X <- Read10X(data.dir = path10x[1])
+              filesdir = dirname(inFile[1,4])
+              file.rename(inFile$datapath[1],paste0(filesdir,'/',inFile$name[1]))
+              file.rename(inFile$datapath[2],paste0(filesdir,'/',inFile$name[2]))
+              file.rename(inFile$datapath[3],paste0(filesdir,'/',inFile$name[3]))
+              
+              count10X <- Read10X(data.dir = filesdir)
+              countMatrix <- as.data.frame(as.matrix(count10X))
+            } else if(file_ext(inFile$name) == "h5"){
+              count10X <- Read10X_h5(inFile$datapath)
               countMatrix <- as.data.frame(as.matrix(count10X))
             } else if(file_ext(inFile$name) == "rds"){
               countRds$val <- readRDS(file = inFile$datapath)
@@ -195,11 +199,12 @@ count_data <- reactive({
                   content = "Please upload file...", style="danger", dismiss = FALSE, append = FALSE)
     } else {
       if(input$load10x){
-        from <- input$file1$datapath
-        to <- file.path(dirname(from), basename(input$file1$name))
-        file.rename(from, to)
-        path10x <- sub("/[^/]+$", "", inFile$datapath)
-        count10X <- Read10X(data.dir = path10x[1])
+        filesdir = dirname(inFile[1,4])
+        file.rename(inFile$datapath[1],paste0(filesdir,'/',inFile$name[1]))
+        file.rename(inFile$datapath[2],paste0(filesdir,'/',inFile$name[2]))
+        file.rename(inFile$datapath[3],paste0(filesdir,'/',inFile$name[3]))
+              
+        count10X <- Read10X(data.dir = filesdir)
         countMatrix <- as.data.frame(as.matrix(count10X))
       } else if(file_ext(input$file1$name) == "rds"){
         countRds$val <- readRDS(file = inFile$datapath)
@@ -238,11 +243,10 @@ count_data <- reactive({
  # observeEvent(input$sfile,{
  # observe({
  #   if(!is.null(countFile$val)){
-
-  output$dt <- DT::renderDataTable({
+    output$dt <- DT::renderDataTable({
        #DT::datatable(count_data(), escape=FALSE, selection = 'none', options = list(scrollX = TRUE)) %>% formatStyle(0, cursor = 'pointer')
-    DT::datatable(count_data(), escape=FALSE, selection = 'none', options = list(searchHighlight = TRUE, scrollX = TRUE))
-  })
+        DT::datatable(count_data(), escape=FALSE, selection = 'none', options = list(searchHighlight = TRUE, scrollX = TRUE))
+    })
 #})
 
 #  observe({
@@ -1362,7 +1366,7 @@ observeEvent(c(input$changeLabels,input$clustLabels),{
      isolate({
         source("scripts/UpdateClusters.R", local = TRUE)$value
       })
-     Clusters$val <- sort(as.character(unique(scObject$val@ident)), decreasing = FALSE)
+     Clusters$val <- sort(as.character(unique(Idents(scObject$val))), decreasing = FALSE)
    }
 })
 
@@ -2028,10 +2032,10 @@ output$DistinguishTable <- renderUI({
         #box(title = "", solidHeader = TRUE,
         #        collapsed = FALSE, collapsible = FALSE, width=12,
           fluidRow(column(3,
-            selectizeInput(inputId = "MarkersCluster1", label = "Distinguish Cluster", multiple = FALSE, choices = sort(as.character(unique(scObject$val@ident)), decreasing = FALSE),
+            selectizeInput(inputId = "MarkersCluster1", label = "Distinguish Cluster", multiple = FALSE, choices = sort(as.character(unique(Idents(scObject$val))), decreasing = FALSE),
               selected = NULL, width = "130px", options = list(placeholder = 'Please select one cluster'))),
             column(3,
-            selectizeInput(inputId = "MarkersCluster2", label = "From these Clusters", multiple = TRUE, choices = sort(as.character(unique(scObject$val@ident)), decreasing = FALSE),
+            selectizeInput(inputId = "MarkersCluster2", label = "From these Clusters", multiple = TRUE, choices = sort(as.character(unique(Idents(scObject$val))), decreasing = FALSE),
               selected = NULL, width = "130px", options = list(placeholder = 'Please select two clusters'))),
             column(6,
             htmlOutput("distinguish_msg"))),
@@ -2406,7 +2410,7 @@ observeEvent(input$seuratRUN,{
                                 bsCollapsePanel("Find all markers of specified Cluster",
                                   #uiOutput("choose_ClusterSel"), tags$hr(),
                                   fluidRow(column(6,
-                                    selectizeInput(inputId = "ClusterSel", label = "Find markers of Cluster", multiple = FALSE, choices = sort(as.character(unique(scObject$val@ident)), decreasing = FALSE),
+                                    selectizeInput(inputId = "ClusterSel", label = "Find markers of Cluster", multiple = FALSE, choices = sort(as.character(unique(Idents(scObject$val))), decreasing = FALSE),
                                                   selected = NULL, width = "150px", options = list(placeholder = 'Please select one cluster')))), tags$hr(),
                                   div(DT::dataTableOutput("DT_ClusterSel") %>% withSpinner(type = 6, color="#bf00ff", size = 1)), style = "warning"),
                                 bsCollapsePanel("Find all markers for every Cluster",

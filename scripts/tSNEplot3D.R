@@ -4,8 +4,8 @@ if(isS4(scObject$val) || "defLabels"  %in% isolate(input$clustLabels) || "usehea
 {
   if(!isS4(tSNE3D$val))
     {
-        tSNE3D$val <- RunTSNE(object = scObject$val, reduction.use = "pca", dims.use = 1:75, dim.embed = 3, tsne.method = "FIt-SNE", nthreads = 4, reduction.name = "FItSNE", reduction.key = "FItSNE_", fast_tsne_path = "/bin/fast_tsne", max_iter = 2000)
-        tSNE3D$val <- RunUMAP(object = tSNE3D$val, reduction.use = "pca", max.dim = 3, dims.use = 1:75, min_dist = 0.75)
+        tSNE3D$val <- RunTSNE(object = scObject$val, reduction.use = "pca", dims.use = 1:75, dim.embed = 3, tsne.method = "FIt-SNE", nthreads = 4, reduction.name = "FItSNE", reduction.key = "FItSNE_", fast_tsne_path = "FIt-SNE-master/bin/fast_tsne", max_iter = 2000)
+        tSNE3D$val <- RunUMAP(object = tSNE3D$val, max.dim = 3, dims.use = 1:10)
     }
 
     ################## for Custom labels ################
@@ -13,7 +13,8 @@ if(isS4(scObject$val) || "defLabels"  %in% isolate(input$clustLabels) || "usehea
     cluster.ids <- as.character(unlist(ClusterLabInfo$val[,1]))#, decreasing = FALSE)#c("CD4", "Bcells", "CD8cells",
     new.cluster.ids <- as.character(unlist(ClusterLabInfo$val[,2]))#c("CD4", "Bcells", "CD8cells", 
     if(input$changeLabels){
-      tSNE3D$val@ident <- plyr::mapvalues(x = tSNE3D$val@ident, from = cluster.ids, to = new.cluster.ids)
+      #tSNE3D$val <- RenameIdents(scObject$val, new.cluster.ids)
+      Idents(tSNE3D$val) <- plyr::mapvalues(x = Idents(tSNE3D$val), from = cluster.ids, to = new.cluster.ids)
     }
     CInfo <- cbind(cluster.ids,new.cluster.ids)
     ClusterLabInfo$val <- CInfo
@@ -23,10 +24,11 @@ if(isS4(scObject$val) || "defLabels"  %in% isolate(input$clustLabels) || "usehea
     if(!is.null(dfcluster.ids$val)){
       new.cluster.ids <- as.character(unlist(ClusterLabInfo$val[,2]))
       current.ids <- as.character(unlist(ClusterLabInfo$val[,1]))#, decreasing = FALSE)#c("CD4", "Bcells", "CD8cells",
-      tSNE3D$val@ident <- plyr::mapvalues(x = tSNE3D$val@ident, from = new.cluster.ids, to = current.ids)
+      #tSNE3D$val <- RenameIdents(scObject$val, current.ids)
+      Idents(tSNE3D$val) <- plyr::mapvalues(x = Idents(tSNE3D$val), from = new.cluster.ids, to = current.ids)
     } else {
       new.cluster.ids = ""
-      current.ids <- sort(as.character(unique(tSNE3D$val@ident)), decreasing = FALSE)
+      current.ids <- sort(as.character(unique(Idents(tSNE3D$val))), decreasing = FALSE)
     }
     cluster.ids <- current.ids
     CInfo <- cbind(cluster.ids,new.cluster.ids)
@@ -38,20 +40,22 @@ if(isS4(scObject$val) || "defLabels"  %in% isolate(input$clustLabels) || "usehea
  
 ########### tSNE plot ggplot2
 # Create data frame of clusters computed by Seurat
-df.cluster <- data.frame(Cell = names(tSNE3D$val@ident), Cluster = tSNE3D$val@ident)
+df.cluster <- data.frame(Cell = names(Idents(object = tSNE3D$val)), Cluster = Idents(object = scObject$val))
     
 # Create data frame of tSNE compute by Seurat
-df.umap <- data.frame(tSNE3D$val@dr$umap@cell.embeddings)
+df.umap <- data.frame(Embeddings(object = tSNE3D$val, reduction = "umap"))
 # Add Cell column
+colnames(df.umap) <- c("UMAP1","UMAP2","UMAP3")
 df.umap$Cell = rownames(df.umap)
 # Create data frame of tSNE compute by Seurat
-df.FItsne <- data.frame(tSNE3D$val@dr$FItSNE@cell.embeddings)
-# Add Cell column
+df.FItsne <- data.frame(Embeddings(object = tSNE3D$val, reduction = "FItSNE"))
+# Add Cell Column
 df.FItsne$Cell = rownames(df.FItsne)
 
 # Merge tSNE data frame to Cluster data frame
 df.tsne <- merge(df.umap, df.FItsne, by = "Cell")
 df.tsne <- merge(df.tsne, df.cluster, by = "Cell")
+
 
 df.tsne$Celltype <- df.tsne$Cell
 #df.tsne$Celltype <- gsub("CY|cy|Cy|cY", "Mel", df.tsne$Celltype)

@@ -6,7 +6,8 @@ if(isS4(scObject$val) || !"defLabels" %in% isolate(input$clustLabels) || input$c
     cluster.ids <- as.character(unlist(ClusterLabInfo$val[,1]))#, decreasing = FALSE)#c("CD4", "Bcells", "CD8cells",
     new.cluster.ids <- as.character(unlist(ClusterLabInfo$val[,2]))#c("CD4", "Bcells", "CD8cells", 
     if(input$changeLabels){
-      scObject$val@ident <- plyr::mapvalues(x = scObject$val@ident, from = cluster.ids, to = new.cluster.ids)
+      #scObject$val <- RenameIdents(scObject$val, new.cluster.ids)
+      Idents(scObject$val) <- plyr::mapvalues(x = Idents(scObject$val), from = cluster.ids, to = new.cluster.ids)
     }
     CInfo <- cbind(cluster.ids,new.cluster.ids)
     ClusterLabInfo$val <- CInfo
@@ -16,10 +17,11 @@ if(isS4(scObject$val) || !"defLabels" %in% isolate(input$clustLabels) || input$c
     if(!is.null(dfcluster.ids$val)){
       new.cluster.ids <- as.character(unlist(ClusterLabInfo$val[,2]))
       current.ids <- as.character(unlist(ClusterLabInfo$val[,1]))#, decreasing = FALSE)#c("CD4", "Bcells", "CD8cells",
-      scObject$val@ident <- plyr::mapvalues(x = scObject$val@ident, from = new.cluster.ids, to = current.ids)
+      #scObject$val <- RenameIdents(scObject$val, current.ids)
+      Idents(scObject$val) <- plyr::mapvalues(x = Idents(scObject$val), from = new.cluster.ids, to = current.ids)
     } else {
       new.cluster.ids = ""
-      current.ids <- sort(as.character(unique(scObject$val@ident)), decreasing = FALSE)
+      current.ids <- sort(as.character(unique(Idents(scObject$val))), decreasing = FALSE)
     }
     cluster.ids <- current.ids
     CInfo <- cbind(cluster.ids,new.cluster.ids)
@@ -29,14 +31,15 @@ if(isS4(scObject$val) || !"defLabels" %in% isolate(input$clustLabels) || input$c
 
 ########### tSNE plot ggplot2 
 # Create data frame of clusters computed by Seurat
-df.cluster <- data.frame(Cell = names(scObject$val@ident), Cluster = scObject$val@ident)
+df.cluster <- data.frame(Cell = names(Idents(object = scObject$val)), Cluster = Idents(object = scObject$val))
     
 # Create data frame of tSNE compute by Seurat
-df.umap <- data.frame(scObject$val@dr$umap@cell.embeddings)
+df.umap <- data.frame(Embeddings(object = scObject$val, reduction = "umap"))
 # Add Cell column
+colnames(df.umap) <- c("UMAP1","UMAP2")
 df.umap$Cell = rownames(df.umap)
 # Create data frame of tSNE compute by Seurat
-df.FItsne <- data.frame(scObject$val@dr$FItSNE@cell.embeddings)
+df.FItsne <- data.frame(Embeddings(object = scObject$val, reduction = "FItSNE"))
 # Add Cell column
 df.FItsne$Cell = rownames(df.FItsne)
 
@@ -50,10 +53,11 @@ mode$m <- 0
 }
 
 CoExprPLOT <- function(Dim1,Dim2,CoExpr_file){
-  #CoExpr <- read.delim(CoExpr_file, sep="\t", header=TRUE)
-   CoExpr <- CoExpr_file
-names(CoExpr) <- c("Cell", "Expression", "Gene", "UMAP1", "UMAP2", "FItSNE_1", "FItSNE_2", "Cluster")
-#names(CoExpr) <- c("Cell", "Expression", "Gene", "UMAP1", "UMAP2", "Cluster")
+    CoExpr <- CoExpr_file %>% dplyr::select(Cell, Expression, Gene, UMAP1, UMAP2, FItSNE_1, FItSNE_2, Cluster)
+
+    CoExpr <- CoExpr_file
+    names(CoExpr) <- c("Cell", "Expression", "Gene", "UMAP1", "UMAP2", "FItSNE_1", "FItSNE_2", "Cluster")
+    #names(CoExpr) <- c("Cell", "Expression", "Gene", "UMAP1", "UMAP2", "Cluster")
 
 if("UMAP" %in% isolate(dimPkg$val)) {
   CoExpr <- CoExpr[,c("Cell", "Expression", "Gene", "UMAP1", "UMAP2", "Cluster")]
@@ -106,14 +110,15 @@ Gene12_cellCount <- function() {
   if("UMAP" %in% isolate(dimPkg$val)) {
   Gene12 %>%
     dplyr::group_by(Cluster) %>%
-    summarize(x = median(x = UMAP1), y = median(x = UMAP2)) -> labCluster
+    dplyr::summarize(x = median(x = UMAP1), y = median(x = UMAP2)) -> labCluster
   } else {
   Gene12 %>%
     dplyr::group_by(Cluster) %>%
-    summarize(x = median(x = FItSNE_1), y = median(x = FItSNE_2)) -> labCluster
+    dplyr::summarize(x = median(x = FItSNE_1), y = median(x = FItSNE_2)) -> labCluster
   }
   #ClustID <- CoExpr[tail(seq_along(CoExpr),2)] # Select last 2 columns
-  ClustID <- Gene12[tail(seq_along(Gene12),4)] # Select last 2 columns
+  ClustID <- Gene12 %>% dplyr::select(Cluster, Cell)
+  #ClustID <- Gene12[tail(seq_along(Gene12),4)] # Select last 2 columns
   ClustID <- ClustID[,c(1,2)]
   lables <- as.data.frame(table(ClustID))
   lables <- lables[order(-lables$Freq), ] # count freq of clusters with celltype 
@@ -134,14 +139,15 @@ Gene1_cellCount <- function() {
   if("UMAP" %in% isolate(dimPkg$val)) {
   Gene1 %>%
     dplyr::group_by(Cluster) %>%
-    summarize(x = median(x = UMAP1), y = median(x = UMAP2)) -> labCluster
+    dplyr::summarize(x = median(x = UMAP1), y = median(x = UMAP2)) -> labCluster
   } else {
   Gene1 %>%
     dplyr::group_by(Cluster) %>%
-    summarize(x = median(x = FItSNE_1), y = median(x = FItSNE_2)) -> labCluster
+    dplyr::summarize(x = median(x = FItSNE_1), y = median(x = FItSNE_2)) -> labCluster
   }
 
-  ClustID <- Gene1[tail(seq_along(Gene1),2)] # Select last 2 columns
+  ClustID <- Gene1 %>% dplyr::select(Cluster, Cell)
+  #ClustID <- Gene1[tail(seq_along(Gene1),2)] # Select last 2 columns
   lables <- as.data.frame(table(ClustID))
   lables <- lables[order(-lables$Freq), ] # count freq of clusters with celltype 
   
@@ -163,13 +169,15 @@ Gene2_cellCount <- function(){
   if("UMAP" %in% isolate(dimPkg$val)) {
   Gene2 %>%
     dplyr::group_by(Cluster) %>%
-    summarize(x = median(x = UMAP1), y = median(x = UMAP2)) -> labCluster
+    dplyr::summarize(x = median(x = UMAP1), y = median(x = UMAP2)) -> labCluster
   } else {
   Gene2 %>%
     dplyr::group_by(Cluster) %>%
-    summarize(x = median(x = FItSNE_1), y = median(x = FItSNE_2)) -> labCluster
+    dplyr::summarize(x = median(x = FItSNE_1), y = median(x = FItSNE_2)) -> labCluster
   }
-  ClustID <- Gene2[tail(seq_along(Gene2),2)] # Select last 2 columns
+  
+  ClustID <- Gene2 %>% dplyr::select(Cluster, Cell)
+  #ClustID <- Gene2[tail(seq_along(Gene2),2)] # Select last 2 columns
   lables <- as.data.frame(table(ClustID))
   lables <- lables[order(-lables$Freq), ] # count freq of clusters with celltype 
   ClustLab <- subset(lables, !duplicated(Cluster)) # remove duplicate or low counts
@@ -189,15 +197,16 @@ Gene2_cellCount <- function(){
 if("UMAP" %in% isolate(dimPkg$val)) {
   CoExpr %>%
     dplyr::group_by(Cluster) %>%
-    summarize(x = median(x = UMAP1), y = median(x = UMAP2)) -> labCluster
+    dplyr::summarize(x = median(x = UMAP1), y = median(x = UMAP2)) -> labCluster
   } else {
   CoExpr %>%
     dplyr::group_by(Cluster) %>%
-    summarize(x = median(x = FItSNE_1), y = median(x = FItSNE_2)) -> labCluster
+    dplyr::summarize(x = median(x = FItSNE_1), y = median(x = FItSNE_2)) -> labCluster
   }
 
   #ClustID <- CoExpr[tail(seq_along(CoExpr),2)] # Select last 2 columns
-  ClustID <- CoExpr[tail(seq_along(CoExpr),2)] # Select last 2 columns
+  ClustID <- CoExpr %>% dplyr::select(Cluster, Cell)
+  #ClustID <- CoExpr[tail(seq_along(CoExpr),2)] # Select last 2 columns
   lables <- as.data.frame(table(ClustID))
   lables <- lables[order(-lables$Freq), ] # count freq of clusters with celltype 
   ClustLab <- subset(lables, !duplicated(Cluster)) # remove duplicate or low counts 
@@ -326,12 +335,12 @@ CoExpr_file <- data.frame()
 noGenes <- c()
 p = 0
 
-if(features.plot[1] %in% scObject$val@data@Dimnames[[1]] && features.plot[2] %in% scObject$val@data@Dimnames[[1]]){
+if(features.plot[1] %in% GetAssayData(object = scObject$val)@Dimnames[[1]] && features.plot[2] %in% GetAssayData(object = scObject$val)@Dimnames[[1]]){
     for(i in features.plot)
     {  
       gene <- i
       # Create expression data frame for gene in long format
-      df <- data.frame(Expression = scObject$val@data[gene,], Gene = gene)
+      df <- data.frame(Expression = GetAssayData(object = scObject$val)[gene,], Gene = gene)
       # Add Cell column
       df$Cell = rownames(df)
       # Merge expression data frame to tSNE data frame
@@ -343,7 +352,7 @@ if(features.plot[1] %in% scObject$val@data@Dimnames[[1]] && features.plot[2] %in
     }
     p = 1
     CoExprValue$val$Genes <- NULL
-  } else if(features.plot[1] %in% scObject$val@data@Dimnames[[1]]){
+  } else if(features.plot[1] %in% GetAssayData(object = scObject$val)@Dimnames[[1]]){
     noGenes[length(noGenes)+1] = features.plot[2]
     p = 0
   } else {

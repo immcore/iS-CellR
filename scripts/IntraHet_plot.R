@@ -15,8 +15,8 @@ length(GeneSet1.list)
 for(i in 1:length(GeneSet1.list)){
   gene <- GeneSet1.list[i]
   # Create expression data frame for gene in long format
-  if(gene %in% scObject$val@data@Dimnames[[1]]){
-    df <- data.frame(Cell= names(scObject$val@ident), Expression = scObject$val@data[gene,], Gene = gene)
+  if(gene %in% GetAssayData(object = scObject$val)@Dimnames[[1]]){
+    df <- data.frame(Cell= names(Idents(object = scObject$val)), Expression = GetAssayData(object = scObject$val)[i,], Gene = gene)
     # Merge expression data frame to tSNE data frame
     df <- merge(df, tSNEmatrix$val, by = "Cell")
     
@@ -40,9 +40,9 @@ length(GeneSet2.list)
 for(i in 1:length(GeneSet2.list)){
   gene <- GeneSet2.list[i]
   
-  if(gene %in% scObject$val@data@Dimnames[[1]]){
+  if(gene %in% GetAssayData(object = scObject$val)@Dimnames[[1]]){
     # Create expression data frame for gene in long format
-    df <- data.frame(Cell= names(scObject$val@ident), Expression = scObject$val@data[gene,], Gene = gene)
+    df <- data.frame(Cell= names(Idents(object = scObject$val)), Expression = GetAssayData(object = scObject$val)[i,], Gene = gene)
     # Merge expression data frame to tSNE data frame
     df <- merge(df, tSNEmatrix$val, by = "Cell")
     # Extract sample name from Cell and add column

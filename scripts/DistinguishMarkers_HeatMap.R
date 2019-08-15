@@ -12,12 +12,11 @@ if(is.null(DownloadPlot$val$DistHeatmap)){
 
   MarkersCluster2 <- as.character(unlist(strsplit(input$MarkersCluster2," "))) 
   MarkersCluster1 <- as.character(input$MarkersCluster1)
-  cells <- c(MarkersCluster1, MarkersCluster2)
+  #cells <- c(MarkersCluster1, MarkersCluster2)
+  cells <- WhichCells(object = scObject$val, idents = c(MarkersCluster1, MarkersCluster2))
+  Cells.use <- subset(scObject$val, cells = cells)
 
-  Cells.use <- SubsetData(object = scObject$val, ident.use = cells)
-
-  DownloadPlot$val$DistHeatmap <- DoHeatmap(object = Cells.use, genes.use = rownames(genes), rotate.key=TRUE, cex.row = 12,
-                           slim.col.label = TRUE, remove.key = FALSE)
+  DownloadPlot$val$DistHeatmap <- DoHeatmap(object = Cells.use, features = rownames(genes))
 
   DownloadPlot$val$DistHeatmap <- ggplotly(DownloadPlot$val$DistHeatmap + scale_fill_viridis(option = "viridis")) 
 

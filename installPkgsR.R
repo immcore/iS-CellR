@@ -74,11 +74,12 @@ if (length(new.pkg)) {
 sapply(pkg, require, character.only = TRUE)
 
 # check if UMAP installed
-pkg <- "umap"
-#if (!import(pkg)) {
-    py_install(c("numpy", "scipy", "scikit-learn", "numba", "umap-learn"))
+#pkg <- "umap"
+#new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+#if (length(new.pkg)) {
+#    reticulate::py_install(c("numpy", "scipy", "scikit-learn", "numba", "umap-learn"))
 #}
-import(pkg)
+#sapply(pkg, require, character.only = TRUE)
 
 # check if FI-tSNE installed
 FItSNEpath <- reactiveValues(val=NULL)
@@ -90,11 +91,11 @@ if(!file.exists(paste0(FItSNEbin,"/fast_tsne"))){
     #system("fftw3/configure --prefix=fftw3")
     #system("make")
     #system("make install")
-    #system("wget https://github.com/KlugerLab/FIt-SNE/archive/v1.0.0.zip")
+    #system("wget https://github.com/KlugerLab/FIt-SNE/archive/ec25f1b36598a2d21869d10a258ac366a12f0b05.zip")
     system("unzip FIt-SNE-master.zip")
     #system("rm -r v1.0.0.zip")
     #system("git clone https://github.com/KlugerLab/FIt-SNE.git")
-    system("g++ -std=c++11 -O3 FIt-SNE-master/src/sptree.cpp FIt-SNE-master/src/tsne.cpp FIt-SNE-master/src/nbodyfft.cpp -o FIt-SNE-master/bin/fast_tsne -pthread -lfftw3 -lm")
+    system("g++ -std=c++11 -O3 FIt-SNE-1.0.0/src/sptree.cpp FIt-SNE-1.0.0/src/tsne.cpp FIt-SNE-1.0.0/src/nbodyfft.cpp -o FIt-SNE-1.0.0/bin/fast_tsne -pthread -lfftw3 -lm")
     FItSNEpath$val <- as.character("FIt-SNE-master/bin")
 } else {
     FItSNEpath$val <- as.character("FIt-SNE-master/bin")
