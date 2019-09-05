@@ -32,6 +32,7 @@ ClusterMarkers <- reactiveValues(val=NULL)
 Clusters <- reactiveValues(val=NULL)
 
 #options(shiny.maxRequestSize = 6000*1024^2)
+options(shiny.maxRequestSize=10000*1024^2)
 
 ## options for knitting/rendering rmarkdown chunks
 knitr::opts_chunk$set(echo = FALSE, comment = NA, cache = FALSE,
