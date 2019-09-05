@@ -95,7 +95,7 @@ if(!file.exists(paste0(FItSNEbin,"/fast_tsne"))){
     system("unzip FIt-SNE-master.zip")
     #system("rm -r v1.0.0.zip")
     #system("git clone https://github.com/KlugerLab/FIt-SNE.git")
-    system("g++ -std=c++11 -O3 FIt-SNE-1.0.0/src/sptree.cpp FIt-SNE-1.0.0/src/tsne.cpp FIt-SNE-1.0.0/src/nbodyfft.cpp -o FIt-SNE-1.0.0/bin/fast_tsne -pthread -lfftw3 -lm")
+    system("g++ -std=c++11 -O3 FIt-SNE-master/src/sptree.cpp FIt-SNE-master/src/tsne.cpp FIt-SNE-master/src/nbodyfft.cpp -o FIt-SNE-master/bin/fast_tsne -pthread -lfftw3 -lm")
     FItSNEpath$val <- as.character("FIt-SNE-master/bin")
 } else {
     FItSNEpath$val <- as.character("FIt-SNE-master/bin")
