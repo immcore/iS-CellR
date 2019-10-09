@@ -244,7 +244,7 @@ if("useheader" %in% isolate(input$clustLabels)) {
   df.Gene1$Cluster <- df.Gene1$Celltype 
   df.Gene2$Cluster <- df.Gene2$Celltype
   df.Gene12$Cluster <- df.Gene12$Celltype
-  ClustInfo$Cluster <- ClustInfo$Celltype
+  #ClustInfo$Cluster <- ClustInfo$Celltype
 } 
 
   if(input$SwitchLabelCoExpr == "TRUE") {

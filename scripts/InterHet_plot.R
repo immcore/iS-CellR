@@ -29,28 +29,6 @@ if(isS4(scObject$val) || "defLabels" %in% isolate(input$clustLabels) || input$ch
     ClusterLabInfo$val <- CInfo 
     dfcluster.ids$val <- cluster.ids      
   }
-
-########### tSNE plot ggplot2 
-# Create data frame of clusters computed by Seurat
-df.cluster <- data.frame(Cell = names(Idents(object = scObject$val)), Cluster = Idents(object = scObject$val))
-    
-# Create data frame of tSNE compute by Seurat
-df.umap <- data.frame(Embeddings(object = scObject$val, reduction = "umap"))
-# Add Cell column
-colnames(df.umap) <- c("UMAP1","UMAP2")
-df.umap$Cell = rownames(df.umap)
-# Create data frame of tSNE compute by Seurat
-df.FItsne <- data.frame(Embeddings(object = scObject$val, reduction = "FItSNE"))
-# Add Cell column
-df.FItsne$Cell = rownames(df.FItsne)
-
-# Merge tSNE data frame to Cluster data frame
-df.tsne <- merge(df.umap, df.FItsne, by = "Cell")
-df.tsne <- merge(df.tsne, df.cluster, by = "Cell")
-
-# Make df.tsne global 
-tSNEmatrix$val <- df.tsne
-mode$m <- 0
 }
 
 #now <- Sys.time()
@@ -63,21 +41,20 @@ GeneSet2_file <- data.frame()
 
 Genes <- GeneListglob$val
 GeneSet1.list <- as.vector(Genes[,1])
-for(i in 1:length(GeneSet1.list)){
-  gene <- GeneSet1.list[i]
+for(gene in GeneSet1.list){
 
   if(gene %in% GetAssayData(object = scObject$val)@Dimnames[[1]]){
     # Create expression data frame for gene in long format
-    df <- data.frame(Cell= names(Idents(object = scObject$val)), Expression = GetAssayData(object = scObject$val)[i,], Gene = gene)
+    df <- data.frame(Cell= names(Idents(object = scObject$val)), Expression = GetAssayData(object = scObject$val)[gene,], Gene = gene)
     # Merge expression data frame to tSNE data frame
-    df <- merge(df, tSNEmatrix$val, by = "Cell")
+    #df <- merge(df, tSNEmatrix$val, by = "Cell")
     # Extract sample name from Cell and add column
-
     df$Cell <- gsub("\\..*|_.*|-.*", "", df$Cell)
+
     if("useheader" %in% isolate(input$clustLabels)) {
       GeneSet1_gene <- df[c(1,2)]
     } else {
-      GeneSet1_gene <- df[c(6,2)]
+      GeneSet1_gene <- df[c(4,2)]
     }
     ## count average expression of gene for sample
     keys <- colnames(GeneSet1_gene)[!grepl('Expression',colnames(GeneSet1_gene))]
@@ -95,25 +72,25 @@ names(GeneSet1_avgExpr) <- c("Cell", "Expression")
 keys <- colnames(GeneSet1_avgExpr)[!grepl('Expression',colnames(GeneSet1_avgExpr))]
 X <- as.data.table(GeneSet1_avgExpr)
 GeneSet1 <- X[,list(GeneSet1avgExpr = mean(Expression)),keys]
+
 ##########################
 GeneSet2.list <- as.vector(Genes[,2])
 #length(GeneSet2.list)
-for(i in 1:length(GeneSet2.list)){
-  gene <- GeneSet2.list[i]
+for(gene in GeneSet2.list){
   
   if(gene %in% GetAssayData(object = scObject$val)@Dimnames[[1]]){
     # Create expression data frame for gene in long format
-    df <- data.frame(Cell= names(Idents(object = scObject$val)), Expression = GetAssayData(object = scObject$val)[i,], Gene = gene)
+    df <- data.frame(Cell= names(Idents(object = scObject$val)), Expression = GetAssayData(object = scObject$val)[gene,], Gene = gene)
     # Merge expression data frame to tSNE data frame
-    df <- merge(df, tSNEmatrix$val, by = "Cell")
+    #df <- merge(df, tSNEmatrix$val, by = "Cell")
     # Extract sample name from Cell and add column
     #df$sample <- sapply(strsplit(df$Cell,"_"), `[`, 1)
     df$Cell <- gsub("\\..*|_.*|-.*", "", df$Cell)
-    
+
     if("useheader" %in% isolate(input$clustLabels)) {
       GeneSet2_gene <- df[c(1,2)]
       } else {
-      GeneSet2_gene <- df[c(6,2)]  
+      GeneSet2_gene <- df[c(4,2)]  
       }
      ## count average expression of gene for sample
     keys <- colnames(GeneSet2_gene)[!grepl('Expression',colnames(GeneSet2_gene))]
@@ -142,6 +119,4 @@ GeneSet2_file <- data.frame()
 
 DownloadPlot$val$InterHet <- ggplot(GeneSet1_GeneSet2, aes(GeneSet1avgExpr, GeneSet2avgExpr)) + 
   geom_point(size=4, aes(GeneSet1avgExpr, GeneSet2avgExpr, colour = Cell)) + theme(legend.position="none") +
-  xlab("Gene set1") + ylab("Gene set2") + 
-  
-  geom_text_repel(aes(GeneSet1avgExpr, GeneSet2avgExpr, label=Cell), size = 5) + ggtitle("Inter-sample heterogeneity")
+  xlab("Gene set1") + ylab("Gene set2") + geom_text_repel(aes(GeneSet1avgExpr, GeneSet2avgExpr, label=Cell), size = 5) + ggtitle("Inter-sample heterogeneity")

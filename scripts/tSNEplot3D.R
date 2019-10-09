@@ -4,8 +4,8 @@ if(isS4(scObject$val) || "defLabels"  %in% isolate(input$clustLabels) || "usehea
 {
   if(!isS4(tSNE3D$val))
     {
-        tSNE3D$val <- RunTSNE(object = scObject$val, reduction.use = "pca", dims.use = 1:75, dim.embed = 3, tsne.method = "FIt-SNE", nthreads = 4, reduction.name = "FItSNE", reduction.key = "FItSNE_", fast_tsne_path = "FIt-SNE-master/bin/fast_tsne", max_iter = 2000)
-        tSNE3D$val <- RunUMAP(object = tSNE3D$val, max.dim = 3, dims.use = 1:10)
+        #tSNE3D$val <- RunTSNE(object = scObject$val, dim_embed = 3, reduction.use = "pca", dims.use = 1:75, tsne.method = "FIt-SNE", nthreads = 4, reduction.name = "FItSNE", reduction.key = "FItSNE_", fast_tsne_path = "FIt-SNE-master/bin/fast_tsne", max_iter = 2000)
+        tSNE3D$val <- RunUMAP(object = scObject$val, dims = 1:10, n.components = 3L)
     }
 
     ################## for Custom labels ################
@@ -44,17 +44,18 @@ df.cluster <- data.frame(Cell = names(Idents(object = tSNE3D$val)), Cluster = Id
     
 # Create data frame of tSNE compute by Seurat
 df.umap <- data.frame(Embeddings(object = tSNE3D$val, reduction = "umap"))
+View(df.umap)
 # Add Cell column
 colnames(df.umap) <- c("UMAP1","UMAP2","UMAP3")
 df.umap$Cell = rownames(df.umap)
 # Create data frame of tSNE compute by Seurat
-df.FItsne <- data.frame(Embeddings(object = tSNE3D$val, reduction = "FItSNE"))
+#df.FItsne <- data.frame(Embeddings(object = tSNE3D$val, reduction = "FItSNE"))
 # Add Cell Column
-df.FItsne$Cell = rownames(df.FItsne)
+#df.FItsne$Cell = rownames(df.FItsne)
 
 # Merge tSNE data frame to Cluster data frame
-df.tsne <- merge(df.umap, df.FItsne, by = "Cell")
-df.tsne <- merge(df.tsne, df.cluster, by = "Cell")
+#df.tsne <- merge(df.umap, df.FItsne, by = "Cell")
+df.tsne <- merge(df.umap, df.cluster, by = "Cell")
 
 
 df.tsne$Celltype <- df.tsne$Cell
@@ -87,10 +88,11 @@ if("useheader" %in% isolate(input$clustLabels)) {
     df.tsne$Cluster <- df.tsne$Celltype
 } 
 
-if("UMAP" %in% isolate(dimPkg$val)) {
+
+#if("UMAP" %in% isolate(dimPkg$val)) {
   DownloadPlot$val$tSNE3D <- plot_ly(df.tsne, x = ~UMAP1, y = ~UMAP2, z = ~UMAP3, type = "scatter3d", mode = "markers", color = ~Cluster, 
             text = ~paste("Cell:", Cell, "<br>Cluster:", Cluster)) 
-} else {
-  DownloadPlot$val$tSNE3D <- plot_ly(df.tsne, x = ~FItSNE_1, y = ~FItSNE_2, z = ~FItSNE_3, type = "scatter3d", mode = "markers", color = ~Cluster, 
-            text = ~paste("Cell:", Cell, "<br>Cluster:", Cluster)) 
-}
+#} else {
+#  DownloadPlot$val$tSNE3D <- plot_ly(df.tsne, x = ~FItSNE_1, y = ~FItSNE_2, z = ~FItSNE_3, type = "scatter3d", mode = "markers", color = ~Cluster, 
+#            text = ~paste("Cell:", Cell, "<br>Cluster:", Cluster)) 
+#}

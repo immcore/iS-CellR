@@ -94,7 +94,7 @@ if(length(GenesAbsent$val) == length(features.plot)) {
 	plot.new()
 	DownloadPlot$val$Dotplot <- NULL
 } else {
-	DownloadPlot$val$Dotplot <- DotPlot(object = scObject$val, features = Genes, plot.legend = TRUE, do.return = TRUE)
+	DownloadPlot$val$Dotplot <- DotPlot(object = scObject$val, features = Genes)
 }
 
 

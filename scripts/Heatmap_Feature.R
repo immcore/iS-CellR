@@ -75,8 +75,7 @@ if(input$SwitchHeatmap == "TRUE"){
     }
     topN <- scObjAllmarkers$val %>% group_by(cluster) %>% top_n(input$TopDiffHeatmap, avg_logFC)
     
-    DownloadPlot$val$Heatmap <- DoHeatmap(object = scObject$val, genes.use = topN$gene, rotate.key=TRUE, cex.row = 12,
-                                  slim.col.label = TRUE, remove.key = FALSE)
+    DownloadPlot$val$Heatmap <- DoHeatmap(object = scObject$val, features = topN$gene)
     DownloadPlot$val$Heatmaply <- ggplotly(DownloadPlot$val$Heatmap + scale_fill_viridis(option = "viridis")) 
 } else {
     if(!is.null(input$HeatmapGenes)){
@@ -103,8 +102,7 @@ if(input$SwitchHeatmap == "TRUE"){
               DownloadPlot$val$Heatmap <- NULL
               DownloadPlot$val$Heatmaply <- NULL
         } else {
-              DownloadPlot$val$Heatmap <- DoHeatmap(object = scObject$val, genes.use = Genes, rotate.key=TRUE, cex.row = 12,
-                                            slim.col.label = TRUE, remove.key = FALSE)
+              DownloadPlot$val$Heatmap <- DoHeatmap(object = scObject$val, features = Genes)
               DownloadPlot$val$Heatmaply <- ggplotly(DownloadPlot$val$Heatmap + scale_fill_viridis(option = "viridis")) 
         }
     } else {

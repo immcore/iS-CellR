@@ -9,7 +9,7 @@ if(input$SwitchUpload == "TRUE"){
 if(file_ext(inFile$name) == "rds"){
 
 	scObject$val <- countRds$val
-	countFileQC$val <- as.data.frame(as.matrix(scObject$val@data))
+	countFileQC$val <- as.data.frame(GetAssayData(object = scObject$val))
 	
 } else {
 
@@ -34,7 +34,7 @@ if(file_ext(inFile$name) == "rds"){
     # Detection of variable genes across the single cells
     scObject$val <- FindVariableFeatures(object = scObject$val, selection.method = 'mean.var.plot', mean.cutoff = c(0.0125, 3), dispersion.cutoff = c(0.05, Inf))
           
-    scObject$val <- ScaleData(object = scObject$val, features = rownames(x = scObject$val), vars.to.regress = c("nCount_RNA", "percent.mito", "percent.ribo"), do.par = TRUE, num.cores = 2)
+    scObject$val <- ScaleData(object = scObject$val, features = rownames(x = scObject$val), do.par = TRUE, num.cores = 4)#, vars.to.regress = c("percent.mito", "percent.ribo"), do.par = TRUE, num.cores = 4)
       
     # Perform linear dimensional reduction
     scObject$val <- RunPCA(object = scObject$val)

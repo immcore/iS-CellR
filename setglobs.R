@@ -31,6 +31,8 @@ DistinguishMarkers <- reactiveValues(val=NULL)
 ClusterMarkers <- reactiveValues(val=NULL)
 Clusters <- reactiveValues(val=NULL)
 
+theme_set(theme_classic())
+
 #options(shiny.maxRequestSize = 6000*1024^2)
 options(shiny.maxRequestSize=10000*1024^2)
 

@@ -12,7 +12,7 @@ instpkg <- function(pkg,repo){
 
 
 # CRAN R packages
-CRANpkgs <- c("shinyBS", "shinydashboard", "shinydashboardPlus", "shinyFiles", "shinyWidgets", "shinyalert", "htmltools", "shinycssloaders", "shinyjs", "DT", "devtools", "dplyr", "knitr", "kableExtra", "knitcitations", "nycflights13", 
+CRANpkgs <- c("shinyBS", "shinydashboard", "shinydashboardPlus", "shinyFiles", "shinyWidgets", "shinyalert", "Seurat", "htmltools", "shinycssloaders", "shinyjs", "DT", "devtools", "dplyr", "knitr", "kableExtra", "knitcitations", "nycflights13", 
 	"Matrix", "plotly", "reticulate", "pryr", "tools", "igraph", "heatmaply", "data.table", "ggthemes", "evaluate", "psych", "ggjoy", "formattable", "gridExtra", "cowplot", "ggrepel", "data.table", "stringr", "rmarkdown")
 instpkg(CRANpkgs, "CRAN")
 
@@ -33,12 +33,12 @@ if (length(new.pkg)) {
 sapply(pkg, require, character.only = TRUE)
 
 # check if Seurat installed
-pkg <- "Seurat"
-new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
-if (length(new.pkg)) {
-    devtools::install_github("satijalab/seurat", ref = "develop", dependencies=TRUE)
-    }
-sapply(pkg, require, character.only = TRUE)
+#pkg <- "Seurat"
+#new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+#if (length(new.pkg)) {
+#    devtools::install_github("satijalab/seurat", ref = "develop", dependencies=TRUE)
+#    }
+#sapply(pkg, require, character.only = TRUE)
 
 # check if leonawicz/apputils installed
 pkg <- "apputils"

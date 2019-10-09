@@ -159,7 +159,7 @@ count_data <- reactive({
               countMatrix <- as.data.frame(as.matrix(count10X))
             } else if(file_ext(inFile$name) == "rds"){
               countRds$val <- readRDS(file = inFile$datapath)
-              countMatrix <- as.data.frame(as.matrix(countRds$val@data))
+              countMatrix <- as.data.frame(GetAssayData(object = countRds$val))
             } else {
               countMatrix <- fread(inFile$datapath, header = input$header, 
                               sep = input$sep, quote = input$quote, stringsAsFactors=FALSE)
@@ -208,7 +208,7 @@ count_data <- reactive({
         countMatrix <- as.data.frame(as.matrix(count10X))
       } else if(file_ext(input$file1$name) == "rds"){
         countRds$val <- readRDS(file = inFile$datapath)
-        countMatrix <- as.data.frame(as.matrix(countRds$val@data))
+        countMatrix <- as.data.frame(GetAssayData(object = countRds$val))
       } else {
         countMatrix <- fread(inFile$datapath, header = input$header, 
                         sep = input$sep, quote = input$quote, stringsAsFactors=FALSE)
@@ -1172,7 +1172,7 @@ Sys.sleep(1)
 })
 
 observeEvent(c(input$SwitchHeatmap,input$updateHeatmap,input$TopDiffHeatmap),{
-  output$seuratHeatmap <- renderPlot({
+  output$seuratHeatmap <- renderPlotly({
       req(c(input$SwitchHeatmap,input$updateHeatmap,input$TopDiffHeatmap))
         isolate({
           source("scripts/Heatmap_Feature.R", local = TRUE)$value

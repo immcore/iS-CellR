@@ -12,11 +12,10 @@ Genes <- GeneListglob$val
 
 GeneSet1.list <- as.vector(Genes[,1])
 length(GeneSet1.list)
-for(i in 1:length(GeneSet1.list)){
-  gene <- GeneSet1.list[i]
+for(gene in GeneSet1.list){
   # Create expression data frame for gene in long format
   if(gene %in% GetAssayData(object = scObject$val)@Dimnames[[1]]){
-    df <- data.frame(Cell= names(Idents(object = scObject$val)), Expression = GetAssayData(object = scObject$val)[i,], Gene = gene)
+    df <- data.frame(Cell= names(Idents(object = scObject$val)), Expression = GetAssayData(object = scObject$val)[gene,], Gene = gene)
     # Merge expression data frame to tSNE data frame
     df <- merge(df, tSNEmatrix$val, by = "Cell")
     
@@ -37,12 +36,11 @@ GeneSet1SC <- X[,list(GeneSet1avgExprSC= mean(Expression)),keys]
 
 GeneSet2.list <- as.vector(Genes[,2])
 length(GeneSet2.list)
-for(i in 1:length(GeneSet2.list)){
-  gene <- GeneSet2.list[i]
+for(gene in GeneSet2.list){
   
   if(gene %in% GetAssayData(object = scObject$val)@Dimnames[[1]]){
     # Create expression data frame for gene in long format
-    df <- data.frame(Cell= names(Idents(object = scObject$val)), Expression = GetAssayData(object = scObject$val)[i,], Gene = gene)
+    df <- data.frame(Cell= names(Idents(object = scObject$val)), Expression = GetAssayData(object = scObject$val)[gene,], Gene = gene)
     # Merge expression data frame to tSNE data frame
     df <- merge(df, tSNEmatrix$val, by = "Cell")
     # Extract sample name from Cell and add column
